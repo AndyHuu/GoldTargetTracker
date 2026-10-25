@@ -1,0 +1,15 @@
+.tools/
+dist/
+__pycache__/
+*.pyc
+WTF/
+**/SavedVariables/
+*.bak
+*.log
+.env
+.env.*
+GoldTargetTrackerData.lua
+GoldTargetTrackerBackup.lua
+/GoldTargetTracker.lua
+Backups/
+*.zip
