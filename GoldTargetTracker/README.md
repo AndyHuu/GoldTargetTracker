@@ -35,7 +35,7 @@ python -m pip install --target .tools/python -r tests/requirements.txt
 python -B -m unittest discover -s tests -p 'test_*.py'
 ```
 
-98 项模拟回归通过；rc12 登录来源保护与固定名称尚待游戏内验收。离线测试不能替代所有客户端组合、API 权限、银行及真实物品消耗验证。详情见 [验证记录](docs/VALIDATION.md) 和 [游戏测试步骤](docs/TESTING.md)。
+98 项模拟回归通过；2026-10-26用户已反馈rc12游戏测试未发现问题。离线测试不能替代所有客户端组合、API 权限、银行及真实物品消耗验证。详情见 [验证记录](docs/VALIDATION.md) 和 [游戏测试步骤](docs/TESTING.md)。
 
 ## 已知边界
 
