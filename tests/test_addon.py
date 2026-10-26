@@ -108,7 +108,7 @@ class AddonTests(unittest.TestCase):
     def test_auto_use_full_list_scrolls_and_remove_preserves_other_items(self):
         self.run_lua("GoldTargetTrackerData={autoUseItems={}}; for i=1,20 do GoldTargetTrackerData.autoUseItems[i]='Item'..i end")
         self.boot()
-        self.run_lua("local c=api.GetAutoUseContent(); assert(c.listContent and c.listScroll,'missing scroll list'); assert(c.listContent:GetHeight()==720 and #c.lines==20); c.listScroll:SetSize(360,300); assert(c.listContent:GetWidth()==360); c.listScroll:SetVerticalScroll(420); c.lines[20].removeBtn.scripts.OnClick(); assert(#db.autoUseItems==19 and db.autoUseItems[19]=='Item19' and not c.lines[20].row:IsShown()); assert(c.listContent:GetHeight()==684 and c.listScroll:GetVerticalScroll()<=384)")
+        self.run_lua("local c=api.GetAutoUseContent(); assert(c.listContent and c.listScroll,'missing scroll list'); assert(c.listContent:GetHeight()==480 and #c.lines==20); c.listScroll:SetSize(360,300); assert(c.listContent:GetWidth()==360); c.listScroll:SetVerticalScroll(420); c.lines[20].removeBtn.scripts.OnClick(); assert(#db.autoUseItems==19 and db.autoUseItems[19]=='Item19' and not c.lines[20].row:IsShown()); assert(c.listContent:GetHeight()==456 and c.listScroll:GetVerticalScroll()<=156)")
 
     def test_auto_use_new_layout_adds_disables_and_clears(self):
         self.boot()
@@ -124,7 +124,7 @@ class AddonTests(unittest.TestCase):
 
     def test_target_presets_update_visible_amount_and_selected_state(self):
         self.boot()
-        self.run_lua("local input; for _,f in ipairs(frames) do if f.kind=='EditBox' and f.width==150 and f.height==24 then input=f end end; assert(input); local b700=clickText('坐骑 + 全部额外NPC（700万）'); assert(db.target==7000000 and GoldTargetTrackerBackup.target==7000000); assert(input:GetText()=='7000000', 'preset left stale visible input'); assert(not b700:IsEnabled()); local b500=clickText('坐骑本体（500万）'); assert(db.target==5000000 and input:GetText()=='5000000' and not b500:IsEnabled() and b700:IsEnabled()); input:SetText('6000000'); input.scripts.OnEnterPressed(input); assert(db.target==6000000 and b500:IsEnabled() and b700:IsEnabled() and soundCount==0)")
+        self.run_lua("local input; for _,f in ipairs(frames) do if f.kind=='EditBox' and f.width==150 and f.height==24 then input=f end end; assert(input); local b700=clickText('700万'); assert(db.target==7000000 and GoldTargetTrackerBackup.target==7000000); assert(input:GetText()=='7000000', 'preset left stale visible input'); assert(not b700:IsEnabled()); local b500=clickText('500万'); assert(db.target==5000000 and input:GetText()=='5000000' and not b500:IsEnabled() and b700:IsEnabled()); input:SetText('6000000'); input.scripts.OnEnterPressed(input); assert(db.target==6000000 and b500:IsEnabled() and b700:IsEnabled() and soundCount==0)")
 
     def test_panel_context_menu_order_and_defaults(self):
         self.boot()

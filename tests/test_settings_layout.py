@@ -8,6 +8,23 @@ class SettingsLayoutTests(unittest.TestCase):
     boot = test_addon.AddonTests.boot
     run_lua = test_addon.AddonTests.run_lua
 
+    def test_compact_pages_fit_typical_settings_viewport(self):
+        self.boot()
+        self.run_lua("""
+            local limits={
+                {GoldTargetTrackerOverviewPage,640},
+                {GoldTargetTrackerIncomePage,660},
+                {GoldTargetTrackerOptionsPage,560},
+            }
+            for _,entry in ipairs(limits) do
+                entry[1]:SetSize(580,684)
+                assert(entry[1].content:GetHeight()<=entry[2], 'large fixed whitespace remains')
+            end
+            local auto=api.GetAutoUseContent()
+            assert(auto.listScroll.points.TOPLEFT[5]>=-120,'auto-use header still oversized')
+            assert(auto.lines[1].row:GetHeight()<=24,'auto-use rows not compact')
+        """)
+
     def test_overview_name_and_role_assets_only_in_income(self):
         self.boot()
         self.run_lua("""
@@ -19,6 +36,25 @@ class SettingsLayoutTests(unittest.TestCase):
                 end
             end
             assert(table.concat(labels,',')=='总览,金币来源,自动使用,设置')
+        """)
+
+    def test_income_reflows_between_inline_and_wrapped_without_changing_values(self):
+        self.boot()
+        self.run_lua("""
+            db.incomeSources.totals.vendor=12345
+            local page=GoldTargetTrackerIncomePage
+            page:SetSize(580,684)
+            local label,amount
+            for _,f in ipairs(frames) do if f.text=='商人售卖' then label=f end end
+            for _,f in ipairs(frames) do if f.text=='1 金 23 银 45 铜' and f.parent==label.parent then amount=f end end
+            assert(amount and not amount.points.TOPLEFT and amount.points.TOPRIGHT[5]==label.points.TOPLEFT[5])
+            local compact=page.content:GetHeight()
+            page:SetSize(320,450)
+            assert(amount.points.TOPLEFT and amount.points.TOPLEFT[5]<label.points.TOPLEFT[5])
+            assert(page.content:GetHeight()>compact)
+            page:SetSize(580,684)
+            assert(page.content:GetHeight()==compact and amount:GetText()=='1 金 23 银 45 铜')
+            assert(api.Income.Total(db.incomeSources)==12345)
         """)
 
     def test_settings_fonts_remain_readable_at_narrow_width(self):
@@ -78,20 +114,21 @@ class SettingsLayoutTests(unittest.TestCase):
     def test_sections_stretch_and_long_forecasts_wrap_inside_cards(self):
         self.boot()
         self.run_lua("""
-            local assets,notes,forecast=0,0,0
+            local assets,notes,forecast=nil,nil,0
             for _,f in ipairs(frames) do
                 if f.kind=='FontString' and f.text=='角色资产' then
-                    assets=f.parent.points.TOPLEFT[5]
+                    assets=f.parent
                     assert(f.parent.points.TOPRIGHT, 'asset card has fixed width')
                     assert(f.parent.parent==GoldTargetTrackerIncomePage.content)
                 end
-                if f.kind=='FontString' and f.text=='统计说明' then notes=f.parent.points.TOPLEFT[5] end
-                if f.kind=='FontString' and f.wordWrap==true and f.height==40 and f.parent.parent==GoldTargetTrackerOverviewPage.content then
+                if f.kind=='FontString' and f.text=='统计说明' then notes=f.parent end
+                if f.kind=='FontString' and f.wordWrap==true and f.parent.parent==GoldTargetTrackerOverviewPage.content then
                     assert(f.points.TOPLEFT and f.points.TOPRIGHT)
+                    assert(f:GetHeight()>=24)
                     forecast=forecast+1
                 end
             end
-            assert(assets<notes and forecast==2, 'asset position or forecast bounds wrong')
+            assert(assets and notes and assets.points.TOPLEFT[2]==notes and assets.points.TOPLEFT[3]=='BOTTOMLEFT' and forecast==2, 'asset position or forecast bounds wrong')
         """)
 
 

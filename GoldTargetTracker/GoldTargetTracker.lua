@@ -1,5 +1,5 @@
 --[[
-    GoldTargetTracker（金币攒钱计划）v2.2.0-rc10
+    GoldTargetTracker（金币攒钱计划）v2.2.0-rc11
     魔兽世界正式服（至暗之夜 12.x，国服）金币目标追踪插件
     功能：
       1. 可视化面板：当前金币 / 战团银行金币 / 总金币 / 进度条 / 各角色金币列表
@@ -2242,6 +2242,8 @@ end
 
 -- ============ 自动使用（设置界面分页与列表管理，新增功能） ============
 local MAX_AUTO_ITEMS = 20  -- 自动使用物品名单最多保存条数
+local SETTINGS_ROW_HEIGHT = 24
+local SETTINGS_GAP = 4
 local autoUseContent = nil  -- 自动使用页控件引用（输入框 / 列表行），供刷新列表使用
 
 -- 刷新已保存物品列表：按 DB.autoUseItems 填充固定行，多余行隐藏
@@ -2249,7 +2251,7 @@ local function RefreshAutoUseList()
     if not autoUseContent then return end
     local items = (type(DB.autoUseItems) == "table") and DB.autoUseItems or {}
     autoUseContent.listLabel:SetText("自动使用名单（" .. #items .. "/" .. MAX_AUTO_ITEMS .. "）")
-    autoUseContent.listContent:SetHeight(math.max(36, #items * 36))
+    autoUseContent.listContent:SetHeight(math.max(SETTINGS_ROW_HEIGHT, #items * SETTINGS_ROW_HEIGHT))
     for i, line in ipairs(autoUseContent.lines) do
         local itemName = items[i]
         if itemName then
@@ -2322,17 +2324,17 @@ local function CreateAutoUseContent(containerFrame)
     local tip = containerFrame:CreateFontString(nil, "OVERLAY")
     tip:SetFont(F, 14)
     tip:SetTextColor(0.78, 0.80, 0.84)
-    tip:SetPoint("TOPLEFT", containerFrame, "TOPLEFT", 16, -44)
-    tip:SetPoint("TOPRIGHT", containerFrame, "TOPRIGHT", -16, -44)
+    tip:SetPoint("TOPLEFT", containerFrame, "TOPLEFT", 14, -28)
+    tip:SetPoint("TOPRIGHT", containerFrame, "TOPRIGHT", -14, -28)
     tip:SetJustifyH("LEFT")
-    tip:SetText("填写与游戏内一致的物品名称。仅对新增数量尝试使用。")
+    tip:SetText("填写物品原名，仅对新增数量尝试使用。")
 
     -- 物品名称输入框
     local input = CreateFrame("EditBox", nil, containerFrame, "InputBoxTemplate")
-    input:SetSize(200, 30)
+    input:SetSize(200, 24)
     input:SetFont(F, 14, "")
-    input:SetPoint("TOPLEFT", containerFrame, "TOPLEFT", 16, -88)
-    input:SetPoint("TOPRIGHT", containerFrame, "TOPRIGHT", -112, -88)
+    input:SetPoint("TOPLEFT", containerFrame, "TOPLEFT", 14, -50)
+    input:SetPoint("TOPRIGHT", containerFrame, "TOPRIGHT", -104, -50)
     input:SetAutoFocus(false)
     input:SetScript("OnEscapePressed", function(self)
         self:SetText("")
@@ -2341,8 +2343,8 @@ local function CreateAutoUseContent(containerFrame)
 
     -- 确定按钮：把输入名称存入 DB.autoUseItems 并刷新列表
     local btnOK = CreateFrame("Button", nil, containerFrame, "UIPanelButtonTemplate")
-    btnOK:SetSize(86, 30)
-    btnOK:SetPoint("TOPRIGHT", containerFrame, "TOPRIGHT", -16, -88)
+    btnOK:SetSize(82, 24)
+    btnOK:SetPoint("TOPRIGHT", containerFrame, "TOPRIGHT", -14, -50)
     btnOK:SetText("添加")
     local function AddInputItem()
         AddAutoUseItem(input:GetText())
@@ -2354,7 +2356,7 @@ local function CreateAutoUseContent(containerFrame)
 
     -- 总开关按钮：停用/启用自动使用（名单保留，随时可切换）
     local btnToggle = CreateFrame("Button", nil, containerFrame, "UIPanelButtonTemplate")
-    btnToggle:SetSize(130, 26)
+    btnToggle:SetSize(130, 24)
     btnToggle:SetPoint("TOPRIGHT", containerFrame, "TOPRIGHT", -16, -6)
     local function RefreshToggleText()
         if DB.autoUseEnabled == false then
@@ -2383,22 +2385,22 @@ local function CreateAutoUseContent(containerFrame)
     local listLabel = containerFrame:CreateFontString(nil, "OVERLAY")
     listLabel:SetFont(F, 14)
     listLabel:SetTextColor(1.0, 0.85, 0.5)
-    listLabel:SetPoint("TOPLEFT", containerFrame, "TOPLEFT", 16, -140)
+    listLabel:SetPoint("TOPLEFT", containerFrame, "TOPLEFT", 14, -84)
 
     -- 清空按钮：一键清空整个名单
     local btnClear = CreateFrame("Button", nil, containerFrame, "UIPanelButtonTemplate")
-    btnClear:SetSize(80, 26)
-    btnClear:SetPoint("TOPRIGHT", containerFrame, "TOPRIGHT", -16, -132)
+    btnClear:SetSize(80, 24)
+    btnClear:SetPoint("TOPRIGHT", containerFrame, "TOPRIGHT", -14, -78)
     btnClear:SetText("清空")
     btnClear:SetScript("OnClick", function()
         ClearAutoUseItems()
     end)
 
     local listScroll = CreateFrame("ScrollFrame", nil, containerFrame, "UIPanelScrollFrameTemplate")
-    listScroll:SetPoint("TOPLEFT", containerFrame, "TOPLEFT", 16, -172)
-    listScroll:SetPoint("BOTTOMRIGHT", containerFrame, "BOTTOMRIGHT", -34, 16)
+    listScroll:SetPoint("TOPLEFT", containerFrame, "TOPLEFT", 14, -108)
+    listScroll:SetPoint("BOTTOMRIGHT", containerFrame, "BOTTOMRIGHT", -32, 8)
     local listContent = CreateFrame("Frame", nil, listScroll)
-    listContent:SetSize(math.max(1, listScroll:GetWidth()), 36)
+    listContent:SetSize(math.max(1, listScroll:GetWidth()), SETTINGS_ROW_HEIGHT)
     listScroll:SetScrollChild(listContent)
     listScroll:SetScript("OnSizeChanged", function(_, width)
         listContent:SetWidth(math.max(1, width))
@@ -2413,9 +2415,9 @@ local function CreateAutoUseContent(containerFrame)
     local lines = {}
     for i = 1, MAX_AUTO_ITEMS do
         local row = CreateFrame("Frame", nil, listContent)
-        row:SetHeight(34)
-        row:SetPoint("TOPLEFT", listContent, "TOPLEFT", 0, -(i - 1) * 36)
-        row:SetPoint("TOPRIGHT", listContent, "TOPRIGHT", 0, -(i - 1) * 36)
+        row:SetHeight(SETTINGS_ROW_HEIGHT - 2)
+        row:SetPoint("TOPLEFT", listContent, "TOPLEFT", 0, -(i - 1) * SETTINGS_ROW_HEIGHT)
+        row:SetPoint("TOPRIGHT", listContent, "TOPRIGHT", 0, -(i - 1) * SETTINGS_ROW_HEIGHT)
         local background = row:CreateTexture(nil, "BACKGROUND")
         background:SetAllPoints(row)
         background:SetColorTexture(0.10, 0.10, 0.12, 0.8)
@@ -2437,9 +2439,10 @@ local function CreateAutoUseContent(containerFrame)
         row:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
         local btnRemove = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-        btnRemove:SetSize(70, 26)
+        btnRemove:SetSize(70, 20)
         btnRemove:SetPoint("RIGHT", row, "RIGHT", -6, 0)
         btnRemove:SetText("移除")
+        btnRemove:GetFontString():SetFont(F, 14, "")
         btnRemove:SetScript("OnClick", function()
             RemoveAutoUseItem(i)
         end)
@@ -2447,6 +2450,7 @@ local function CreateAutoUseContent(containerFrame)
         lines[i] = { row = row, name = nameLabel, removeBtn = btnRemove }
     end
 
+    for _, button in ipairs({ btnOK, btnToggle, btnClear }) do button:GetFontString():SetFont(F, 14, "") end
     autoUseContent = {
         input = input,
         lines = lines,
@@ -2524,31 +2528,50 @@ CreateSettingsPanel = function()
     local contentViewport = CreateFrame("Frame", nil, root)
     contentViewport:SetPoint("TOPLEFT", root, "TOPLEFT", 154, -12)
     contentViewport:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -12, 12)
+    local function UpdatePageHeight(page)
+        if not page.sections then return end
+        local height = SETTINGS_GAP
+        for _, section in ipairs(page.sections) do height = height + section:GetHeight() + SETTINGS_GAP end
+        page.content:SetHeight(height)
+        page:SetVerticalScroll(math.max(0, math.min(page:GetVerticalScroll(), height - page:GetHeight())))
+    end
+    local function StackSections(page, sections)
+        page.sections = sections
+        local previous
+        for _, section in ipairs(sections) do
+            section:ClearAllPoints()
+            section:SetPoint("TOPLEFT", previous or page.content, previous and "BOTTOMLEFT" or "TOPLEFT", previous and 0 or 4, -SETTINGS_GAP)
+            section:SetPoint("TOPRIGHT", previous or page.content, previous and "BOTTOMRIGHT" or "TOPRIGHT", previous and 0 or -4, -SETTINGS_GAP)
+            previous = section
+        end
+        UpdatePageHeight(page)
+    end
     -- 固定14号正文：画布变小时滚动内容，不再缩小整页字体。
-    local function CreateScrollPage(name, height)
+    local function CreateScrollPage(name)
         local page = CreateFrame("ScrollFrame", name, contentViewport, "UIPanelScrollFrameTemplate")
         page:SetPoint("TOPLEFT", contentViewport, "TOPLEFT", 0, 0)
         page:SetPoint("BOTTOMRIGHT", contentViewport, "BOTTOMRIGHT", -24, 0)
         local canvas = CreateFrame("Frame", nil, page)
-        canvas:SetSize(math.max(1, page:GetWidth()), height)
+        canvas:SetSize(math.max(1, page:GetWidth()), 1)
         page:SetScrollChild(canvas)
         page.content = canvas
         local function FitPage()
             canvas:SetWidth(math.max(1, page:GetWidth()))
-            local maxScroll = math.max(0, canvas:GetHeight() - page:GetHeight())
-            page:SetVerticalScroll(math.min(page:GetVerticalScroll(), maxScroll))
+            for _, section in ipairs(page.sections or {}) do section:SetWidth(math.max(1, canvas:GetWidth() - 8)) end
+            if page.Reflow then page.Reflow() end
+            UpdatePageHeight(page)
         end
         page:HookScript("OnSizeChanged", FitPage)
         page:HookScript("OnShow", FitPage)
         return page
     end
-    local pageGold = CreateScrollPage("GoldTargetTrackerOverviewPage", 726)
-    local pageIncome = CreateScrollPage("GoldTargetTrackerIncomePage", 978)
+    local pageGold = CreateScrollPage("GoldTargetTrackerOverviewPage")
+    local pageIncome = CreateScrollPage("GoldTargetTrackerIncomePage")
     pageIncome:Hide()
     local pageAuto = CreateFrame("Frame", nil, contentViewport)
     pageAuto:SetAllPoints(contentViewport)
     pageAuto:Hide()
-    local pageSettings = CreateScrollPage("GoldTargetTrackerOptionsPage", 988)
+    local pageSettings = CreateScrollPage("GoldTargetTrackerOptionsPage")
     pageSettings:Hide()
 
     local navButtons = {}
@@ -2582,8 +2605,8 @@ CreateSettingsPanel = function()
     }
     for i, item in ipairs(navItems) do
         local btn = CreateFrame("Button", nil, nav, "BackdropTemplate")
-        btn:SetSize(132, 36)
-        btn:SetPoint("TOPLEFT", nav, "TOPLEFT", 0, -28 - (i - 1) * 40)
+        btn:SetSize(132, 28)
+        btn:SetPoint("TOPLEFT", nav, "TOPLEFT", 0, -28 - (i - 1) * 32)
         btn:SetBackdrop({
             bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
             edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -2597,21 +2620,22 @@ CreateSettingsPanel = function()
     end
 
     -- ===== 总览：目标进度、收益表现、目标预测与趋势 =====
-    local progressSection = MakeSection(pageGold, "目标进度", -4, 182)
+    local progressSection = MakeSection(pageGold, "目标进度", 0, 136)
     local dashboardTitle = MakeText(progressSection, DB.name or "金币攒钱计划", 14, PALE,
-        "TOPLEFT", progressSection, "TOPLEFT", 14, -34, "OUTLINE")
-    dashboardTitle:SetPoint("TOPRIGHT", progressSection, "TOPRIGHT", -14, -34)
-    dashboardTitle:SetHeight(34)
+        "TOPLEFT", progressSection, "TOPLEFT", 14, -28, "OUTLINE")
+    dashboardTitle:SetPoint("TOPRIGHT", progressSection, "TOPRIGHT", -14, -28)
+    dashboardTitle:SetHeight(18)
+    dashboardTitle:SetWordWrap(false)
     local totalLabel = MakeText(progressSection, "账号总金币：--", 13, GOLD,
-        "TOPLEFT", progressSection, "TOPLEFT", 14, -72, "OUTLINE")
+        "TOPLEFT", progressSection, "TOPLEFT", 14, -52, "OUTLINE")
     local targetLabel = MakeText(progressSection, "当前目标：--", 11, MUTED,
-        "TOPLEFT", progressSection, "TOPLEFT", 14, -96)
+        "TOPLEFT", progressSection, "TOPLEFT", 14, -72)
     local diffLabel = MakeText(progressSection, "距离目标：--", 11, PALE,
-        "TOPLEFT", progressSection, "TOPLEFT", 14, -120)
+        "TOPLEFT", progressSection, "TOPLEFT", 14, -92)
     local progressBar = CreateFrame("StatusBar", nil, progressSection, "BackdropTemplate")
     progressBar:SetHeight(18)
-    progressBar:SetPoint("BOTTOMLEFT", progressSection, "BOTTOMLEFT", 14, 15)
-    progressBar:SetPoint("BOTTOMRIGHT", progressSection, "BOTTOMRIGHT", -14, 15)
+    progressBar:SetPoint("BOTTOMLEFT", progressSection, "BOTTOMLEFT", 14, 8)
+    progressBar:SetPoint("BOTTOMRIGHT", progressSection, "BOTTOMRIGHT", -14, 8)
     progressBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
     progressBar:SetStatusBarColor(0.83, 0.65, 0.20, 1)
     progressBar:SetMinMaxValues(0, 1)
@@ -2621,7 +2645,7 @@ CreateSettingsPanel = function()
     progressBar:SetBackdropBorderColor(0.28, 0.22, 0.12, 1)
     local progressText = MakeText(progressBar, "0.00%", 11, { 1.0, 0.94, 0.72 }, "CENTER", progressBar, "CENTER", 0, 0, "OUTLINE")
 
-    local earningsSection = MakeSection(pageGold, "收益表现", -194, 118)
+    local earningsSection = MakeSection(pageGold, "收益表现", 0, 96)
     local earnMetrics = {}
     local earnDefs = {
         { label = "今日收益", color = { 0.45, 1.0, 0.55 } },
@@ -2630,38 +2654,38 @@ CreateSettingsPanel = function()
     }
     for i, def in ipairs(earnDefs) do
         local label = MakeText(earningsSection, def.label, 14, MUTED,
-            "TOPLEFT", earningsSection, "TOPLEFT", 14, -32 - (i - 1) * 28)
+            "TOPLEFT", earningsSection, "TOPLEFT", 14, -28 - (i - 1) * SETTINGS_ROW_HEIGHT)
         local value = MakeText(earningsSection, "--", 14, def.color,
-            "TOPRIGHT", earningsSection, "TOPRIGHT", -14, -32 - (i - 1) * 28, "OUTLINE")
+            "TOPRIGHT", earningsSection, "TOPRIGHT", -14, -28 - (i - 1) * SETTINGS_ROW_HEIGHT, "OUTLINE")
         earnMetrics[i] = { label = label, value = value }
     end
 
-    local predictionSection = MakeSection(pageGold, "目标预测", -320, 168)
+    local predictionSection = MakeSection(pageGold, "目标预测", 0, 88)
     local naturalForecastLabel = MakeText(predictionSection, "预计还需自然日", 11, MUTED,
-        "TOPLEFT", predictionSection, "TOPLEFT", 14, -30)
+        "TOPLEFT", predictionSection, "TOPLEFT", 14, -28)
     local naturalForecastValue = MakeText(predictionSection, "暂时无法估算", 14, GOLD,
-        "TOPLEFT", predictionSection, "TOPLEFT", 14, -50, "OUTLINE")
+        "TOPLEFT", predictionSection, "TOPLEFT", 122, -28, "OUTLINE")
     local gameForecastLabel = MakeText(predictionSection, "预计还需游戏时间", 11, MUTED,
-        "TOPLEFT", predictionSection, "TOPLEFT", 14, -96)
+        "TOPLEFT", predictionSection, "TOPLEFT", 14, -56)
     local gameForecastValue = MakeText(predictionSection, "暂时无法估算", 14, BLUE,
-        "TOPLEFT", predictionSection, "TOPLEFT", 14, -116, "OUTLINE")
-    naturalForecastValue:SetPoint("TOPRIGHT", predictionSection, "TOPRIGHT", -14, -50)
-    gameForecastValue:SetPoint("TOPRIGHT", predictionSection, "TOPRIGHT", -14, -116)
+        "TOPLEFT", predictionSection, "TOPLEFT", 122, -56, "OUTLINE")
+    naturalForecastValue:SetPoint("TOPRIGHT", predictionSection, "TOPRIGHT", -14, -28)
+    gameForecastValue:SetPoint("TOPRIGHT", predictionSection, "TOPRIGHT", -14, -56)
     for _, value in ipairs({ naturalForecastValue, gameForecastValue }) do
         value:SetJustifyH("LEFT")
         value:SetWordWrap(true)
-        value:SetHeight(40)
+        value:SetHeight(SETTINGS_ROW_HEIGHT)
     end
 
-    local trendSection = MakeSection(pageGold, "最近 7 天趋势", -496, 218)
+    local trendSection = MakeSection(pageGold, "最近 7 天趋势", 0, 190)
     local legendGold = MakeText(trendSection, "● 每日总金币", 10, GOLD,
-        "TOPLEFT", trendSection, "TOPLEFT", 14, -40)
+        "TOPLEFT", trendSection, "TOPLEFT", 14, -28)
     local legendGain = MakeText(trendSection, "● 每日收益", 10, BLUE,
-        "TOPRIGHT", trendSection, "TOPRIGHT", -14, -40)
+        "TOPRIGHT", trendSection, "TOPRIGHT", -14, -28)
     local graph = CreateFrame("Frame", nil, trendSection, "BackdropTemplate")
     graph:SetSize(550, 134)
-    graph:SetPoint("TOPLEFT", trendSection, "TOPLEFT", 14, -72)
-    graph:SetPoint("BOTTOMRIGHT", trendSection, "BOTTOMRIGHT", -14, 12)
+    graph:SetPoint("TOPLEFT", trendSection, "TOPLEFT", 14, -50)
+    graph:SetPoint("BOTTOMRIGHT", trendSection, "BOTTOMRIGHT", -14, 8)
     graph:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background" })
     graph:SetBackdropColor(0.012, 0.012, 0.015, 0.62)
     local graphLines = { total = {}, gain = {} }
@@ -2704,23 +2728,23 @@ CreateSettingsPanel = function()
         dateLabels[i]:SetJustifyH("CENTER")
     end
 
-    local roleSection = MakeSection(pageIncome, "角色资产", -798, 168)
+    local roleSection = MakeSection(pageIncome, "角色资产", 0, 156)
     local expandRoles = CreateFrame("Button", nil, roleSection, "UIPanelButtonTemplate")
-    expandRoles:SetSize(100, 26)
+    expandRoles:SetSize(100, 22)
     expandRoles:SetPoint("TOPRIGHT", roleSection, "TOPRIGHT", -12, -6)
     expandRoles:SetText("展开全部")
     local roleContent = CreateFrame("Frame", nil, roleSection)
-    roleContent:SetPoint("TOPLEFT", roleSection, "TOPLEFT", 14, -36)
-    roleContent:SetPoint("TOPRIGHT", roleSection, "TOPRIGHT", -14, -36)
+    roleContent:SetPoint("TOPLEFT", roleSection, "TOPLEFT", 14, -28)
+    roleContent:SetPoint("TOPRIGHT", roleSection, "TOPRIGHT", -14, -28)
     roleContent:SetHeight(1)
     local roleRows = {}
     local rolesExpanded = false
     local function EnsureRoleRow(index)
         if roleRows[index] then return roleRows[index] end
         local row = CreateFrame("Frame", nil, roleContent)
-        row:SetHeight(24)
-        row:SetPoint("TOPLEFT", roleContent, "TOPLEFT", 0, -(index - 1) * 24)
-        row:SetPoint("TOPRIGHT", roleContent, "TOPRIGHT", 0, -(index - 1) * 24)
+        row:SetHeight(SETTINGS_ROW_HEIGHT)
+        row:SetPoint("TOPLEFT", roleContent, "TOPLEFT", 0, -(index - 1) * SETTINGS_ROW_HEIGHT)
+        row:SetPoint("TOPRIGHT", roleContent, "TOPRIGHT", 0, -(index - 1) * SETTINGS_ROW_HEIGHT)
         row.name = MakeText(row, "", 11, PALE, "LEFT", row, "LEFT", 2, 0)
         row.name:SetPoint("RIGHT", row, "RIGHT", -150, 0)
         row.name:SetJustifyH("LEFT")
@@ -2748,26 +2772,23 @@ CreateSettingsPanel = function()
     CreateAutoUseContent(autoSection)
 
     -- ===== 设置页中的战斗隐藏设置 =====
-    local interfaceSection = MakeSection(pageSettings, "战斗隐藏", -738, 238)
-    MakeText(interfaceSection, "战斗期间自动隐藏金币目标主面板", 13, PALE,
-        "TOPLEFT", interfaceSection, "TOPLEFT", 14, -38, "OUTLINE")
-    MakeNote(interfaceSection, "开启后，战斗中不允许通过 /gtt 打开；脱离战斗后仅恢复战斗前已打开的面板。", -68, 66)
+    local interfaceSection = MakeSection(pageSettings, "战斗隐藏", 0, 100)
     combatCheckbox = CreateFrame("CheckButton", nil, interfaceSection, "UICheckButtonTemplate")
-    combatCheckbox:SetPoint("TOPLEFT", interfaceSection, "TOPLEFT", 14, -146)
+    combatCheckbox:SetPoint("TOPLEFT", interfaceSection, "TOPLEFT", 10, -28)
     combatCheckbox:SetChecked(DB.hidePanelInCombat ~= false)
-    local combatCheckboxLabel = MakeText(interfaceSection, "启用战斗中自动隐藏（默认开启）", 12, GOLD,
-        "TOPLEFT", interfaceSection, "TOPLEFT", 48, -138)
-    combatCheckboxLabel:SetPoint("TOPRIGHT", interfaceSection, "TOPRIGHT", -14, -138)
+    local combatCheckboxLabel = MakeText(interfaceSection, "战斗中隐藏（默认开启）", 14, GOLD,
+        "TOPLEFT", interfaceSection, "TOPLEFT", 44, -32)
+    combatCheckboxLabel:SetPoint("TOPRIGHT", interfaceSection, "TOPRIGHT", -14, -32)
     combatCheckboxLabel:SetJustifyH("LEFT")
-    combatCheckboxLabel:SetHeight(42)
+    combatCheckboxLabel:SetHeight(20)
     combatCheckbox:SetScript("OnClick", function(self)
         SetCombatHidden(self:GetChecked() and true or false)
     end)
-    MakeNote(interfaceSection, "小地图金币按钮与 /gtt 命令继续保留。", -184, 42)
+    MakeNote(interfaceSection, "战斗中不能打开主面板；脱战后仅恢复此前打开的面板。", -60, 32)
 
     -- ===== 设置页：目标金额、插件名称、数据维护纵向分区 =====
-    local targetSection = MakeSection(pageSettings, "目标金额", -4, 232)
-    MakeNote(targetSection, "选择预设目标，或输入自定义金币金额。修改目标本身不会触发达标庆祝。", -34, 48)
+    local targetSection = MakeSection(pageSettings, "目标金额", 0, 132)
+    MakeNote(targetSection, "500万：坐骑；700万：坐骑及额外NPC。", -28, 32)
     local customTarget
     local function SetTarget(value)
         if type(value) ~= "number" or value <= 0 or value ~= value then return end
@@ -2779,22 +2800,22 @@ CreateSettingsPanel = function()
         RefreshPanel()
     end
     local target500 = CreateFrame("Button", nil, targetSection, "UIPanelButtonTemplate")
-    target500:SetSize(150, 30)
-    target500:SetPoint("TOPLEFT", targetSection, "TOPLEFT", 14, -86)
-    target500:SetPoint("TOPRIGHT", targetSection, "TOPRIGHT", -14, -86)
-    target500:SetText("坐骑本体（500万）")
+    target500:SetSize(150, 24)
+    target500:SetPoint("TOPLEFT", targetSection, "TOPLEFT", 14, -64)
+    target500:SetPoint("TOPRIGHT", targetSection, "TOP", -2, -64)
+    target500:SetText("500万")
     target500:SetScript("OnClick", function() SetTarget(5000000) end)
     local target700 = CreateFrame("Button", nil, targetSection, "UIPanelButtonTemplate")
-    target700:SetSize(190, 30)
-    target700:SetPoint("TOPLEFT", targetSection, "TOPLEFT", 14, -120)
-    target700:SetPoint("TOPRIGHT", targetSection, "TOPRIGHT", -14, -120)
-    target700:SetText("坐骑 + 全部额外NPC（700万）")
+    target700:SetSize(150, 24)
+    target700:SetPoint("TOPLEFT", targetSection, "TOP", 2, -64)
+    target700:SetPoint("TOPRIGHT", targetSection, "TOPRIGHT", -14, -64)
+    target700:SetText("700万")
     target700:SetScript("OnClick", function() SetTarget(7000000) end)
     customTarget = CreateFrame("EditBox", nil, targetSection, "InputBoxTemplate")
     customTarget:SetSize(150, 24)
     customTarget:SetFont(FONT, 14, "")
     customTarget:SetAutoFocus(false)
-    customTarget:SetPoint("TOPLEFT", targetSection, "TOPLEFT", 14, -162)
+    customTarget:SetPoint("TOPLEFT", targetSection, "TOPLEFT", 14, -96)
     customTarget:SetNumeric(true)
     customTarget:SetMaxLetters(12)
     customTarget:SetText(tostring(DB.target))
@@ -2805,26 +2826,25 @@ CreateSettingsPanel = function()
         self:SetText(tostring(DB.target))
         self:ClearFocus()
     end)
-    MakeNote(targetSection, "自定义金额（输入后按回车保存）", -194, 24)
+    MakeText(targetSection, "自定义，回车保存", 14, MUTED, "LEFT", customTarget, "RIGHT", 8, 0)
 
-    local nameSection = MakeSection(pageSettings, "插件名称", -244, 226)
-    MakeNote(nameSection, "可选预设名称，也可以使用自定义名称。", -34, 40)
+    local nameSection = MakeSection(pageSettings, "插件名称", 0, 118)
+    MakeNote(nameSection, "预设或自定义名称。", -28, 16)
     local nameA = CreateFrame("Button", nil, nameSection, "UIPanelButtonTemplate")
-    nameA:SetSize(150, 30)
-    nameA:SetPoint("TOPLEFT", nameSection, "TOPLEFT", 14, -78)
-    nameA:SetPoint("TOPRIGHT", nameSection, "TOPRIGHT", -14, -78)
+    nameA:SetSize(150, 24)
+    nameA:SetPoint("TOPLEFT", nameSection, "TOPLEFT", 14, -50)
+    nameA:SetPoint("TOPRIGHT", nameSection, "TOP", -2, -50)
     nameA:SetText("金币攒钱计划")
     local nameB = CreateFrame("Button", nil, nameSection, "UIPanelButtonTemplate")
-    nameB:SetSize(150, 30)
-    nameB:SetPoint("TOPLEFT", nameSection, "TOPLEFT", 14, -112)
-    nameB:SetPoint("TOPRIGHT", nameSection, "TOPRIGHT", -14, -112)
+    nameB:SetSize(150, 24)
+    nameB:SetPoint("TOPLEFT", nameSection, "TOP", 2, -50)
+    nameB:SetPoint("TOPRIGHT", nameSection, "TOPRIGHT", -14, -50)
     nameB:SetText("金币目标追踪")
     local customName = CreateFrame("EditBox", nil, nameSection, "InputBoxTemplate")
-    customName:SetSize(220, 24)
+    customName:SetSize(160, 24)
     customName:SetFont(FONT, 14, "")
     customName:SetAutoFocus(false)
-    customName:SetPoint("TOPLEFT", nameSection, "TOPLEFT", 14, -154)
-    customName:SetPoint("TOPRIGHT", nameSection, "TOPRIGHT", -14, -154)
+    customName:SetPoint("TOPLEFT", nameSection, "TOPLEFT", 14, -82)
     customName:SetMaxLetters(48)
     customName:SetText(DB.name or "金币攒钱计划")
     local function SetName(value)
@@ -2842,23 +2862,23 @@ CreateSettingsPanel = function()
     nameB:SetScript("OnClick", function() SetName("金币目标追踪") end)
     customName:SetScript("OnEscapePressed", function(self) self:SetText(DB.name or "金币攒钱计划"); self:ClearFocus() end)
     customName:SetScript("OnEnterPressed", function(self) SetName(self:GetText()); self:ClearFocus() end)
-    MakeNote(nameSection, "自定义名称（输入后按回车保存）", -186, 26)
+    MakeText(nameSection, "回车保存", 14, MUTED, "LEFT", customName, "RIGHT", 8, 0)
 
-    local maintenanceSection = MakeSection(pageSettings, "数据维护", -478, 252)
-    MakeNote(maintenanceSection, "重置前会再次确认；角色金币快照与角色位置会按现有规则保留。", -34, 48)
+    local maintenanceSection = MakeSection(pageSettings, "数据维护", 0, 124)
+    MakeNote(maintenanceSection, "重置须确认，保留角色资产。", -28, 16)
     local resetStat = CreateFrame("Button", nil, maintenanceSection, "UIPanelButtonTemplate")
-    resetStat:SetSize(130, 30)
-    resetStat:SetPoint("TOPLEFT", maintenanceSection, "TOPLEFT", 14, -86)
-    resetStat:SetPoint("TOPRIGHT", maintenanceSection, "TOPRIGHT", -14, -86)
+    resetStat:SetSize(130, 24)
+    resetStat:SetPoint("TOPLEFT", maintenanceSection, "TOPLEFT", 14, -50)
+    resetStat:SetPoint("TOPRIGHT", maintenanceSection, "TOP", -2, -50)
     resetStat:SetText("重置统计")
     resetStat:SetScript("OnClick", function() StaticPopup_Show("GOLDTT_RESET_STAT") end)
     local resetAll = CreateFrame("Button", nil, maintenanceSection, "UIPanelButtonTemplate")
-    resetAll:SetSize(130, 30)
-    resetAll:SetPoint("TOPLEFT", maintenanceSection, "TOPLEFT", 14, -120)
-    resetAll:SetPoint("TOPRIGHT", maintenanceSection, "TOPRIGHT", -14, -120)
+    resetAll:SetSize(130, 24)
+    resetAll:SetPoint("TOPLEFT", maintenanceSection, "TOP", 2, -50)
+    resetAll:SetPoint("TOPRIGHT", maintenanceSection, "TOPRIGHT", -14, -50)
     resetAll:SetText("重置所有")
     resetAll:SetScript("OnClick", function() StaticPopup_Show("GOLDTT_RESET_ALL") end)
-    MakeNote(maintenanceSection, "重置统计：重新累计今日收益。\n重置所有：清除每日/小时历史及累计来源收入，并重新建立统计起点。", -162, 78)
+    MakeNote(maintenanceSection, "重置今日保留来源；重置所有清空历史及来源。", -82, 32)
     for _, button in ipairs({ target500, target700, nameA, nameB, resetStat, resetAll, expandRoles }) do
         button:GetFontString():SetFont(FONT, 14, "")
     end
@@ -2938,6 +2958,20 @@ CreateSettingsPanel = function()
             end
         end
 
+        local forecastWidth = math.max(1, predictionSection:GetWidth() - 136)
+        naturalForecastValue:SetWidth(forecastWidth)
+        gameForecastValue:SetWidth(forecastWidth)
+        local naturalHeight = math.max(SETTINGS_ROW_HEIGHT, naturalForecastValue:GetStringHeight())
+        local gameHeight = math.max(SETTINGS_ROW_HEIGHT, gameForecastValue:GetStringHeight())
+        naturalForecastValue:SetHeight(naturalHeight)
+        local gameTop = -28 - naturalHeight - SETTINGS_GAP
+        gameForecastLabel:SetPoint("TOPLEFT", predictionSection, "TOPLEFT", 14, gameTop)
+        gameForecastValue:SetPoint("TOPLEFT", predictionSection, "TOPLEFT", 122, gameTop)
+        gameForecastValue:SetPoint("TOPRIGHT", predictionSection, "TOPRIGHT", -14, gameTop)
+        gameForecastValue:SetHeight(gameHeight)
+        predictionSection:SetHeight(28 + naturalHeight + SETTINGS_GAP + gameHeight + 8)
+        UpdatePageHeight(pageGold)
+
         local chartData = GetRecent7DayData()
         local totalValues, gainValues = {}, {}
         local totalMin, totalMax, gainMin, gainMax = math.huge, -math.huge, math.huge, -math.huge
@@ -2962,10 +2996,9 @@ CreateSettingsPanel = function()
 
         local allRows = GetAllRoleRows()
         local visibleCount = rolesExpanded and #allRows or math.min(5, #allRows)
-        roleContent:SetHeight(math.max(24, visibleCount * 24))
-        roleSection:SetHeight(48 + math.max(1, visibleCount) * 24)
-        pageIncome.content:SetHeight(798 + roleSection:GetHeight() + 12)
-        pageIncome:SetVerticalScroll(math.max(0, math.min(pageIncome:GetVerticalScroll(), pageIncome.content:GetHeight() - pageIncome:GetHeight())))
+        roleContent:SetHeight(math.max(SETTINGS_ROW_HEIGHT, visibleCount * SETTINGS_ROW_HEIGHT))
+        roleSection:SetHeight(36 + math.max(1, visibleCount) * SETTINGS_ROW_HEIGHT)
+        UpdatePageHeight(pageIncome)
         for i = 1, visibleCount do
             local rowData = allRows[i]
             local row = EnsureRoleRow(i)
@@ -2995,51 +3028,78 @@ CreateSettingsPanel = function()
     -- 收入独立于余额净收益，只展示启用后实际到账的累计金额。
     graph:SetScript("OnSizeChanged", function() RefreshGoldTargetDashboard() end)
 
-    local incomeHeader = MakeSection(pageIncome, "累计到账收入", 0, 138)
-    local incomeTotal = MakeText(incomeHeader, "", 18, GOLD, "TOPLEFT", incomeHeader, "TOPLEFT", 14, -34)
-    incomeTotal:SetPoint("TOPRIGHT", incomeHeader, "TOPRIGHT", -14, -34)
+    local incomeHeader = MakeSection(pageIncome, "累计到账收入", 0, 106)
+    local incomeTotal = MakeText(incomeHeader, "", 18, GOLD, "TOPLEFT", incomeHeader, "TOPLEFT", 14, -28)
+    incomeTotal:SetPoint("TOPRIGHT", incomeHeader, "TOPRIGHT", -14, -28)
     incomeTotal:SetWordWrap(false)
-    local incomeStarted = MakeText(incomeHeader, "", 12, PALE, "TOPLEFT", incomeHeader, "TOPLEFT", 14, -60)
-    MakeNote(incomeHeader, "累计到账收入，不等于净利润；银行存取不计入。", -88, 40)
-    local incomeSection = MakeSection(pageIncome, "来源构成", -146, 532)
+    local incomeStarted = MakeText(incomeHeader, "", 12, PALE, "TOPLEFT", incomeHeader, "TOPLEFT", 14, -50)
+    MakeNote(incomeHeader, "累计到账收入，不等于净利润；银行存取不计入。", -70, 32)
+    local incomeSection = MakeSection(pageIncome, "来源构成", 0, 292)
     local incomeRows = {}
     for i, category in ipairs(Income.categories) do
-        local top = -34 - (i - 1) * 56
-        local name = MakeText(incomeSection, category.label, 14, PALE, "TOPLEFT", incomeSection, "TOPLEFT", 14, top)
-        local amount = MakeText(incomeSection, "", 14, GOLD, "TOPLEFT", incomeSection, "TOPLEFT", 14, top - 22)
-        amount:SetPoint("TOPRIGHT", incomeSection, "TOPRIGHT", -14, top - 22)
-        amount:SetJustifyH("LEFT")
+        local name = MakeText(incomeSection, category.label, 14, PALE)
+        local amount = MakeText(incomeSection, "", 14, GOLD)
         amount:SetWordWrap(false)
-        local percent = MakeText(incomeSection, "", 12, MUTED, "TOPRIGHT", incomeSection, "TOPRIGHT", -14, top)
+        local percent = MakeText(incomeSection, "", 14, MUTED)
         local bar = CreateFrame("StatusBar", nil, incomeSection)
-        bar:SetPoint("TOPLEFT", incomeSection, "TOPLEFT", 14, top - 44)
-        bar:SetPoint("TOPRIGHT", incomeSection, "TOPRIGHT", -14, top - 44)
-        bar:SetHeight(6)
+        bar:SetHeight(3)
         bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
         bar:SetStatusBarColor(0.95, 0.73, 0.22)
         bar:SetMinMaxValues(0, 1)
-        incomeRows[i] = { amount = amount, percent = percent, bar = bar }
+        incomeRows[i] = { name = name, amount = amount, percent = percent, bar = bar }
     end
-    local incomeEmpty = MakeNote(incomeSection, "尚无收入；获得金币后自动累计，旧历史无法追溯。", -488, 34)
-    local incomeNotes = MakeSection(pageIncome, "统计说明", -686, 104)
-    MakeNote(incomeNotes, "邮件和交易均计入；小号转钱也会再次累计。拍卖按实际领款金额统计。", -34, 58)
+    local incomeEmpty = MakeNote(incomeSection, "尚无收入；获得金币后自动累计，旧历史无法追溯。", 0, 32)
+    local incomeNotes = MakeSection(pageIncome, "统计说明", 0, 68)
+    MakeNote(incomeNotes, "拍卖按实领（含押金）统计；邮件、交易及小号转钱也计入。", -28, 32)
     local function IncomeMoney(copper)
         return FormatNumber(math.floor(copper / 10000)) .. " 金 "
             .. math.floor(copper / 100) % 100 .. " 银 " .. copper % 100 .. " 铜"
     end
     Income.Refresh = function()
         local data, total = DB.incomeSources, Income.Total(DB.incomeSources)
+        local wide = pageIncome.content:GetWidth() >= 460
+        local rowHeight = wide and 28 or 48
         incomeTotal:SetText(IncomeMoney(total))
         incomeStarted:SetText("开始统计：" .. date("%Y-%m-%d %H:%M", data.startedAt))
         for i, category in ipairs(Income.categories) do
             local amount = data.totals[category.key] or 0
             local share = total > 0 and amount / total or 0
+            local top = -28 - (i - 1) * rowHeight
+            local row = incomeRows[i]
+            row.name:ClearAllPoints()
+            row.name:SetPoint("TOPLEFT", incomeSection, "TOPLEFT", 14, top)
+            row.percent:ClearAllPoints()
+            row.percent:SetPoint("TOPRIGHT", incomeSection, "TOPRIGHT", -14, top)
+            row.amount:ClearAllPoints()
+            if wide then
+                row.amount:SetPoint("TOPRIGHT", incomeSection, "TOPRIGHT", -82, top)
+                row.amount:SetJustifyH("RIGHT")
+            else
+                row.amount:SetPoint("TOPLEFT", incomeSection, "TOPLEFT", 14, top - SETTINGS_ROW_HEIGHT)
+                row.amount:SetPoint("TOPRIGHT", incomeSection, "TOPRIGHT", -14, top - SETTINGS_ROW_HEIGHT)
+                row.amount:SetJustifyH("LEFT")
+            end
+            row.bar:ClearAllPoints()
+            local barTop = top - (wide and 20 or 40)
+            row.bar:SetPoint("TOPLEFT", incomeSection, "TOPLEFT", 14, barTop)
+            row.bar:SetPoint("TOPRIGHT", incomeSection, "TOPRIGHT", -14, barTop)
+            row.bar:SetHeight(3)
             incomeRows[i].amount:SetText(IncomeMoney(amount))
             incomeRows[i].percent:SetText(string.format("%.2f%%", share * 100))
             incomeRows[i].bar:SetValue(share)
         end
+        local bodyHeight = 28 + #Income.categories * rowHeight
+        incomeEmpty:SetPoint("TOPLEFT", incomeSection, "TOPLEFT", 14, -bodyHeight)
+        incomeEmpty:SetPoint("TOPRIGHT", incomeSection, "TOPRIGHT", -14, -bodyHeight)
+        incomeSection:SetHeight(bodyHeight + (total == 0 and 32 or 0) + 8)
         incomeEmpty:SetShown(total == 0)
+        UpdatePageHeight(pageIncome)
     end
+    StackSections(pageGold, { progressSection, earningsSection, predictionSection, trendSection })
+    StackSections(pageIncome, { incomeHeader, incomeSection, incomeNotes, roleSection })
+    StackSections(pageSettings, { targetSection, nameSection, maintenanceSection, interfaceSection })
+    pageGold.Reflow = RefreshGoldTargetDashboard
+    pageIncome.Reflow = Income.Refresh
     Income.Refresh()
 
     -- 导航按钮初始化完成后，默认选中总览页。

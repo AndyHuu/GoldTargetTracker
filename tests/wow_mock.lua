@@ -118,6 +118,14 @@ function methods:UnregisterEvent(event) self.events[event]=nil end
 function methods:UnregisterAllEvents() self.events={} end
 function methods:SetText(text) self.text=text end
 function methods:GetText() return self.text or '' end
+function methods:GetStringHeight()
+    local size=self.font and self.font[2] or 14
+    local lines=0
+    for line in (self:GetText()..'\n'):gmatch('(.-)\n') do
+        lines=lines+(self.wordWrap and math.max(1,math.ceil(#line*size/2/math.max(1,self.width or 500))) or 1)
+    end
+    return math.max(1,lines)*size
+end
 function methods:SetChecked(value) self.checked=value end
 function methods:GetChecked() return self.checked end
 function methods:HasFocus() return false end
