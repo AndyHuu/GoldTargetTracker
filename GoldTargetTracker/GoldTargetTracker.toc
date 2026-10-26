@@ -2,7 +2,7 @@
 ## Title: GoldTargetTracker |cff4da6ff金币攒钱计划|r
 ## Notes: 金币目标追踪：每日自动记账、今日收益、累计收益、目标进度、预计完成时间
 ## Author: GoldTargetTracker contributors
-## Version: 2.2.0-rc9
+## Version: 2.2.0-rc10
 ## Category: 界面增强
 ## SavedVariables: GoldTargetTrackerData, GoldTargetTrackerBackup
 
