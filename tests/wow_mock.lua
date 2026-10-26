@@ -16,7 +16,9 @@ InCombatLockdown = function() return combat end
 GetCursorPosition = function() return 0, 0 end
 NUM_BAG_SLOTS, NUM_TOTAL_EQUIPPED_BAG_SLOTS = 4, 5
 Enum = {BankType={Account=2}}
-C_Bank = {FetchDepositedMoney=function() return bankMoney end, CanViewBank=function() return bankReady end}
+C_Bank = {FetchDepositedMoney=function() return bankMoney end, CanViewBank=function() return bankReady end,
+    WithdrawMoney=function() end}
+WithdrawGuildBankMoney = function() end
 C_Timer = {After=function(delay, fn) timers[#timers+1]={at=now+delay, fn=fn} end}
 function advance(seconds)
     local finish, guard = now+seconds, 0
@@ -48,13 +50,38 @@ C_Container = {
     end,
 }
 C_Item = {GetItemInfo=function() return itemInfoName end, RequestLoadItemDataByID=function() end}
+worldQuests, inbox, mailRequests = {}, {}, {}
+buybacks = {}
+GetNumBuybackItems = function() return #buybacks end
+GetBuybackItemLink = function(index) return 'item:'..buybacks[index].id end
+GetBuybackItemInfo = function(index)
+    local item=buybacks[index]
+    return 'Item',nil,item.price,item.count
+end
+C_QuestLog = {IsWorldQuest=function(id) return worldQuests[id] or false end}
+GetInboxNumItems = function() return #inbox end
+GetInboxHeaderInfo = function(index)
+    local mail = inbox[index]
+    if mail then return nil,nil,nil,mail.subject or ('Mail'..index),mail.amount end
+end
+GetInboxInvoiceInfo = function(index) return inbox[index] and inbox[index].invoice end
+TakeInboxMoney = function(index) mailRequests[#mailRequests+1]=index end
+GetTargetTradeMoney = function() return tradeMoney or 0 end
+GetGuildBankMoney = function() return guildMoney or 0 end
+GOLD_AMOUNT, SILVER_AMOUNT, COPPER_AMOUNT = '%d金币', '%d银币', '%d铜币'
 print = function(...) local parts={...}; for i,v in ipairs(parts) do parts[i]=tostring(v) end; messages[#messages+1]=table.concat(parts,' ') end
 StaticPopupDialogs, SlashCmdList, UISpecialFrames = {}, {}, {}
 StaticPopup_Show = function(key) lastPopup=key end
 SOUNDKIT={UI_ACHIEVEMENT_EARNED=1}
 PlaySound=function() soundCount=soundCount+1 end
 ReloadUI=function() if reloadHook then reloadHook() end end
-hooksecurefunc=function(name,fn) assert(name=='ReloadUI'); reloadHook=fn end
+hooksecurefunc=function(target,name,fn)
+    if target=='ReloadUI' then reloadHook=name; return end
+    if type(target)=='string' then fn,name,target=name,target,_G end
+    assert(type(target[name])=='function')
+    local original=target[name]
+    target[name]=function(...) original(...); fn(...) end
+end
 Settings={RegisterCanvasLayoutCategory=function(frame,name) return {name=name, GetID=function() return 1 end} end, RegisterAddOnCategory=function() end, OpenToCategory=function(id) openedSettingsCategory=id end}
 MenuUtil={CreateContextMenu=function(owner,generator)
     local root={owner=owner,entries={}}
@@ -115,6 +142,7 @@ function methods:SetTexture(texture) self.texture=texture end
 function methods:GetTexture() return self.texture end
 function methods:Show() local change=not self.shown; self.shown=true; if change and self.scripts.OnShow then self.scripts.OnShow(self) end end
 function methods:Hide() self.shown=false end
+function methods:SetShown(value) if value then self:Show() else self:Hide() end end
 function methods:IsShown() return self.shown end
 function methods:IsVisible() return self.shown and (not self.parent or self.parent:IsVisible()) end
 function methods:CreateFontString() return object('FontString',nil,self) end
@@ -147,6 +175,7 @@ function methods:SetScrollChild(child) self.scrollChild=child end
 function methods:GetScrollChild() return self.scrollChild end
 function methods:SetVerticalScroll(value) self.verticalScroll=value end
 function methods:GetVerticalScroll() return self.verticalScroll or 0 end
+function methods:SetValue(value) self.value=value end
 function methods:SetMovable(value) self.movable=value end
 function methods:StartMoving() assert(self.movable~=false); self.moving=true; self.moveCalls=(self.moveCalls or 0)+1 end
 function methods:StopMovingOrSizing() self.moving=false end

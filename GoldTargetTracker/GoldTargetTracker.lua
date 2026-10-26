@@ -1,5 +1,5 @@
 --[[
-    GoldTargetTracker（金币攒钱计划）v2.2.0-rc7
+    GoldTargetTracker（金币攒钱计划）v2.2.0-rc8
     魔兽世界正式服（至暗之夜 12.x，国服）金币目标追踪插件
     功能：
       1. 可视化面板：当前金币 / 战团银行金币 / 总金币 / 进度条 / 各角色金币列表
@@ -23,11 +23,12 @@
       6. /gtt 或 /goldtracker 开关面板，面板可拖动、可关闭、记忆位置
       7. 每日自动记账（DB.records[日期] = 该日最后观测到的总金币，随采集持续更新）
       8. 角色资产列表隐藏 0 金角色；设置页展示连续 7 天双线趋势图（总金币/每日收益）
-      9. 设置页三分类、战斗中隐藏、金币目标达成提示与自动使用待处理队列
+      9. 设置页四分类、战斗中隐藏、金币目标达成提示与自动使用待处理队列
     纯 Lua 实现 UI，不依赖 XML。
 --]]
 
-local addonName = ...
+local addonName, addon = ...
+local Income = addon.Income
 
 -- TOC 已声明 ## SavedVariables: GoldTargetTrackerData, GoldTargetTrackerBackup
 -- GoldTargetTrackerData 为主存档（新文件名，规避旧变量文件加载异常）
@@ -124,13 +125,14 @@ local function ValidData(data)
     end
     if data.accountBase ~= nil and type(data.accountBase) ~= "boolean" then return false end
     if data.todayBase and (type(data.todayBase.day) ~= "string" or not number(data.todayBase.gold)) then return false end
-    return true
+    return Income.Valid(data.incomeSources)
 end
 
 -- 是否存在实质资产/历史数据：角色快照、每日记录、小时记录任一非空，或已写入首次基准。
 -- 仅含设置/默认字段（target/name/pos/autoUseItems 等）的表不算实质数据。
 local function HasSubstanceData(data)
     if type(data) ~= "table" then return false end
+    if data.incomeSources and Income.Valid(data.incomeSources) and Income.Total(data.incomeSources) > 0 then return true end
     if CountRoles(data.roles) > 0 then return true end
     if type(data.records) == "table" and next(data.records) ~= nil then return true end
     if type(data.hourly) == "table" and next(data.hourly) ~= nil then return true end
@@ -227,6 +229,7 @@ local function InitDB()
     if DB.hidePanelInCombat == nil then DB.hidePanelInCombat = true end
     if DB.lockPanel == nil then DB.lockPanel = false end
     if DB.showMinimapIcon == nil then DB.showMinimapIcon = true end
+    DB.incomeSources = DB.incomeSources or Income.NewData()
     -- 加载诊断：聊天框输出当前读取到的历史角色快照数量
     print("|cff4da6ff[GoldTargetTracker]|r 存档加载完成，当前历史角色快照 " .. CountRoles(DB.roles) .. " 个")
     SyncBackup()
@@ -1369,6 +1372,8 @@ local function ResetAllData()
     DB.todayBase = { day = date("%Y-%m-%d"), gold = total }
     DB.hourly = {}
     DB.records = {}
+    DB.incomeSources = Income.NewData()
+    if playerLoggedIn then Income:Start(DB.incomeSources, Income.changed) end
     UpdateRoleSnapshot()
     SyncBackup()
     RefreshPanel()
@@ -1392,7 +1397,7 @@ if not StaticPopupDialogs["GOLDTT_RESET_STAT"] then
 end
 if not StaticPopupDialogs["GOLDTT_RESET_ALL"] then
     StaticPopupDialogs["GOLDTT_RESET_ALL"] = {
-        text = "确定要重置所有吗？\n\n将清空全部历史统计；保留各角色资产和位置，\n并删除最近 7 天及全部历史每日记录、全部小时打点，统计基准改为当前总金币。\n\n此操作不可撤销！",
+        text = "确定要重置所有吗？\n\n将清空全部历史统计及累计金币来源收入，并更新来源统计开始时间；保留各角色资产和位置，\n并删除最近 7 天及全部历史每日记录、全部小时打点，统计基准改为当前总金币。\n\n此操作不可撤销！",
         button1 = "重置所有",
         button2 = "取消",
         OnAccept = function()
@@ -1943,6 +1948,7 @@ end
 -- ============ 定时刷新与事件 ============
 local function OnEvent(self, event, ...)
     if event ~= "ADDON_LOADED" and not dataReady then return end
+    if event ~= "ADDON_LOADED" then Income:OnEvent(event, ...) end
     if event == "ADDON_LOADED" then
         local addon = ...
         if addon == addonName then
@@ -1997,6 +2003,10 @@ local function OnEvent(self, event, ...)
         end
     elseif event == "PLAYER_LOGIN" then
         playerLoggedIn = true
+        Income:Start(DB.incomeSources, function()
+            SyncBackup()
+            if Income.Refresh then Income.Refresh() end
+        end)
         if DB.autoUseQueuePendingReload == true then
             DB.autoUseQueuePendingReload = nil
         else
@@ -2035,6 +2045,7 @@ local function OnEvent(self, event, ...)
         -- 立即刷新一次面板（展示当前角色数据，快照稍后延迟落库）
         RefreshPanel()
     elseif event == "PLAYER_LOGOUT" then
+        Income:Stop()
         playerLoggedIn = false
         if isReloading then
             DB.autoUseQueuePendingReload = true
@@ -2102,6 +2113,7 @@ for _, optionalEvent in ipairs({ "MERCHANT_CLOSED", "MAIL_CLOSED", "TRADE_CLOSED
     pcall(eventFrame.RegisterEvent, eventFrame, optionalEvent)
 end
 eventFrame:SetScript("OnEvent", OnEvent)
+for _, event in ipairs(Income.events) do eventFrame:RegisterEvent(event) end
 
 -- ============ 诊断：/gtt debug ============
 -- 一键把存档关键字段与实时计算值列到聊天框，方便排查"数字不对"类反馈；
@@ -2517,6 +2529,9 @@ CreateSettingsPanel = function()
 
     local pageGold = CreateFrame("Frame", nil, contentHost)
     pageGold:SetAllPoints(contentHost)
+    local pageIncome = CreateFrame("Frame", nil, contentHost)
+    pageIncome:SetAllPoints(contentHost)
+    pageIncome:Hide()
     local pageAuto = CreateFrame("Frame", nil, contentViewport)
     pageAuto:SetAllPoints(contentViewport)
     pageAuto:Hide()
@@ -2542,12 +2557,14 @@ CreateSettingsPanel = function()
         currentPage = page
         currentPage:Show()
         for i, btn in ipairs(navButtons) do StyleNavButton(btn, i == index) end
-        if index == 2 then RefreshAutoUseList() end
+        if page == pageAuto then RefreshAutoUseList() end
+        if page == pageIncome and Income.Refresh then Income.Refresh() end
         if index == 1 and RefreshGoldTargetDashboard then RefreshGoldTargetDashboard() end
     end
-    SelectSettingsPage = function() SelectPage(pageSettings, 3) end
+    SelectSettingsPage = function() SelectPage(pageSettings, 4) end
     local navItems = {
         { text = "金币目标", page = pageGold },
+        { text = "金币来源", page = pageIncome },
         { text = "自动使用", page = pageAuto },
         { text = "设置", page = pageSettings },
     }
@@ -2805,7 +2822,7 @@ CreateSettingsPanel = function()
     resetAll:SetPoint("LEFT", resetStat, "RIGHT", 12, 0)
     resetAll:SetText("重置所有")
     resetAll:SetScript("OnClick", function() StaticPopup_Show("GOLDTT_RESET_ALL") end)
-    MakeText(maintenanceSection, "重置统计：重新累计今日收益。\n重置所有：清除全部每日/小时历史统计并重新建立统计起点。", 10, PALE,
+    MakeText(maintenanceSection, "重置统计：重新累计今日收益。\n重置所有：清除每日/小时历史及累计来源收入，并重新建立统计起点。", 10, PALE,
         "TOPLEFT", maintenanceSection, "TOPLEFT", 14, -100)
 
     -- 图表点位与角色列表每次刷新只更新现有控件，不重复创建线条或行。
@@ -2929,6 +2946,51 @@ CreateSettingsPanel = function()
             row:Show()
         end
     end
+
+    -- 收入独立于余额净收益，只展示启用后实际到账的累计金额。
+    local incomeHeader = MakeSection(pageIncome, "累计到账收入", 0, 112)
+    local incomeTotal = MakeText(incomeHeader, "", 18, GOLD, "TOPLEFT", incomeHeader, "TOPLEFT", 14, -34)
+    local incomeStarted = MakeText(incomeHeader, "", 12, PALE, "TOPLEFT", incomeHeader, "TOPLEFT", 14, -65)
+    MakeText(incomeHeader, "累计到账收入，不等于净利润；银行存取不计入。", 12, MUTED,
+        "TOPLEFT", incomeHeader, "TOPLEFT", 14, -88)
+    local incomeSection = MakeSection(pageIncome, "来源构成", -124, 466)
+    local incomeRows = {}
+    for i, category in ipairs(Income.categories) do
+        local top = -34 - (i - 1) * 50
+        local name = MakeText(incomeSection, category.label, 14, PALE, "TOPLEFT", incomeSection, "TOPLEFT", 14, top)
+        local amount = MakeText(incomeSection, "", 14, GOLD, "TOPRIGHT", incomeSection, "TOPRIGHT", -82, top)
+        local percent = MakeText(incomeSection, "", 12, MUTED, "TOPRIGHT", incomeSection, "TOPRIGHT", -14, top)
+        local bar = CreateFrame("StatusBar", nil, incomeSection)
+        bar:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -8)
+        bar:SetSize(556, 8)
+        bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+        bar:SetStatusBarColor(0.95, 0.73, 0.22)
+        bar:SetMinMaxValues(0, 1)
+        incomeRows[i] = { amount = amount, percent = percent, bar = bar }
+    end
+    local incomeEmpty = MakeText(incomeSection, "尚无收入；获得金币后自动累计，旧历史无法追溯。", 12, MUTED,
+        "BOTTOMLEFT", incomeSection, "BOTTOMLEFT", 14, 12)
+    MakeText(pageIncome, "邮件和交易均计入；小号转钱也会再次累计。拍卖按实际领款金额统计。", 12, MUTED,
+        "TOPLEFT", pageIncome, "TOPLEFT", 18, -606)
+    local function IncomeMoney(copper)
+        return FormatNumber(math.floor(copper / 10000)) .. " 金 "
+            .. math.floor(copper / 100) % 100 .. " 银 " .. copper % 100 .. " 铜"
+    end
+    Income.Refresh = function()
+        local data, total = DB.incomeSources, Income.Total(DB.incomeSources)
+        incomeTotal:SetText(IncomeMoney(total))
+        incomeStarted:SetText("开始统计：" .. date("%Y-%m-%d %H:%M", data.startedAt))
+        for i, category in ipairs(Income.categories) do
+            local amount = data.totals[category.key] or 0
+            local share = total > 0 and amount / total or 0
+            incomeRows[i].amount:SetText(IncomeMoney(amount))
+            incomeRows[i].percent:SetText(string.format("%.2f%%", share * 100))
+            incomeRows[i].bar:SetValue(share)
+        end
+        incomeEmpty:SetShown(total == 0)
+    end
+    pageIncome:SetScript("OnShow", Income.Refresh)
+    Income.Refresh()
 
     -- 导航按钮初始化完成后，默认选中金币目标页。
     for i, btn in ipairs(navButtons) do StyleNavButton(btn, i == 1) end

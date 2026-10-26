@@ -15,7 +15,7 @@ SnapshotBags=SnapshotBags, TryAutoUseItems=TryAutoUseItems, ProcessAutoUseQueue=
 ResetAchievementBaseline=ResetAchievementBaseline, CheckAchievementCrossing=CheckAchievementCrossing,
 TogglePanel=TogglePanel, ResetStatData=ResetStatData, ResetAllData=ResetAllData,
 GetAutoUseContent=function() return autoUseContent end,
-GetTodayGain=GetTodayGain, GetMainContent=function() return contentInstances[1] end}
+GetTodayGain=GetTodayGain, Income=Income, GetMainContent=function() return contentInstances[1] end}
 '''
 
 
@@ -23,8 +23,11 @@ class AddonTests(unittest.TestCase):
     def setUp(self):
         self.lua = LuaRuntime(unpack_returned_tuples=True)
         self.lua.execute((ROOT / 'tests' / 'wow_mock.lua').read_text(encoding='utf-8'))
+        self.lua.execute("addon={}")
+        income = (ROOT / 'GoldTargetTracker' / 'IncomeSources.lua').read_text(encoding='utf-8-sig')
+        self.lua.execute(income, 'GoldTargetTracker', self.lua.globals().addon)
         self.lua.globals().source = (ROOT / 'GoldTargetTracker' / 'GoldTargetTracker.lua').read_text(encoding='utf-8-sig') + EXPORTS
-        self.lua.execute("api=assert(loadstring(source, '@GoldTargetTracker.lua'))('GoldTargetTracker')")
+        self.lua.execute("api=assert(loadstring(source, '@GoldTargetTracker.lua'))('GoldTargetTracker',addon)")
 
     def run_lua(self, body):
         self.lua.execute(body)
@@ -115,9 +118,9 @@ class AddonTests(unittest.TestCase):
         self.boot()
         self.run_lua("local host; for _,f in ipairs(frames) do if f.width==604 and f.height==684 then host=f end end; assert(host); local viewport=host.parent; assert(viewport~=GoldTargetTrackerSettingsPanel and viewport.scripts.OnSizeChanged, 'fixed content has no canvas viewport'); for _,size in ipairs({{460,540},{604,684},{800,800},{400,450}}) do viewport:SetSize(size[1],size[2]); assert(host:GetWidth()*host:GetScale()<=size[1]+0.01 and host:GetHeight()*host:GetScale()<=size[2]+0.01, 'content overflows canvas') end")
 
-    def test_three_tabs_with_combat_control_in_settings(self):
+    def test_four_tabs_with_combat_control_in_settings(self):
         self.boot()
-        self.run_lua("local count,settingsButton,checkbox=0; for _,f in ipairs(frames) do if f.kind=='Button' and type(f.label)=='table' then count=count+1; assert(f.label:GetText()~='界面与显示'); if f.label:GetText()=='设置' then settingsButton=f end end; if f.kind=='CheckButton' then checkbox=f end end; assert(count==3 and settingsButton and checkbox); settingsButton.scripts.OnClick(); assert(checkbox:IsVisible(), 'combat option not on Settings page'); checkbox:SetChecked(false); checkbox.scripts.OnClick(checkbox); assert(db.hidePanelInCombat==false and GoldTargetTrackerBackup.hidePanelInCombat==false)")
+        self.run_lua("local count,settingsButton,checkbox=0; for _,f in ipairs(frames) do if f.kind=='Button' and type(f.label)=='table' then count=count+1; assert(f.label:GetText()~='界面与显示'); if f.label:GetText()=='设置' then settingsButton=f end end; if f.kind=='CheckButton' then checkbox=f end end; assert(count==4 and settingsButton and checkbox); settingsButton.scripts.OnClick(); assert(checkbox:IsVisible(), 'combat option not on Settings page'); checkbox:SetChecked(false); checkbox.scripts.OnClick(checkbox); assert(db.hidePanelInCombat==false and GoldTargetTrackerBackup.hidePanelInCombat==false)")
 
     def test_target_presets_update_visible_amount_and_selected_state(self):
         self.boot()
