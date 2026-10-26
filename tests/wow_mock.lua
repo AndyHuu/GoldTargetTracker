@@ -108,6 +108,10 @@ local function object(kind, name, parent)
 end
 CreateFrame=function(kind,name,parent) return object(kind,name,parent) end
 function methods:SetScript(key,fn) self.scripts[key]=fn end
+function methods:HookScript(key,fn)
+    local original=self.scripts[key]
+    self.scripts[key]=function(...) if original then original(...) end; fn(...) end
+end
 function methods:GetScript(key) return self.scripts[key] end
 function methods:RegisterEvent(event) self.events[event]=true end
 function methods:UnregisterEvent(event) self.events[event]=nil end
@@ -117,7 +121,11 @@ function methods:GetText() return self.text or '' end
 function methods:SetChecked(value) self.checked=value end
 function methods:GetChecked() return self.checked end
 function methods:HasFocus() return false end
-function methods:SetPoint(...) self.point={...} end
+function methods:SetPoint(...)
+    self.point={...}
+    self.points=self.points or {}
+    self.points[self.point[1]]=self.point
+end
 function methods:GetPoint() return 'CENTER',UIParent,'CENTER',0,0 end
 function methods:SetSize(w,h)
     local changed=self.width~=w or self.height~=h
@@ -146,6 +154,13 @@ function methods:SetShown(value) if value then self:Show() else self:Hide() end 
 function methods:IsShown() return self.shown end
 function methods:IsVisible() return self.shown and (not self.parent or self.parent:IsVisible()) end
 function methods:CreateFontString() return object('FontString',nil,self) end
+function methods:GetFontString()
+    if not self.fontString then
+        self.fontString=object('FontString',nil,self)
+        self.fontString:SetText(self:GetText())
+    end
+    return self.fontString
+end
 function methods:CreateTexture() return object('Texture',nil,self) end
 function methods:CreateLine() return object('Line',nil,self) end
 function methods:CreateAnimationGroup() return object('AnimationGroup',nil,self) end
@@ -176,6 +191,7 @@ function methods:GetScrollChild() return self.scrollChild end
 function methods:SetVerticalScroll(value) self.verticalScroll=value end
 function methods:GetVerticalScroll() return self.verticalScroll or 0 end
 function methods:SetValue(value) self.value=value end
+function methods:ClearAllPoints() self.point=nil; self.points={} end
 function methods:SetMovable(value) self.movable=value end
 function methods:StartMoving() assert(self.movable~=false); self.moving=true; self.moveCalls=(self.moveCalls or 0)+1 end
 function methods:StopMovingOrSizing() self.moving=false end

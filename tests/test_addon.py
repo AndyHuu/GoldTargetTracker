@@ -48,7 +48,7 @@ class AddonTests(unittest.TestCase):
 
     def test_role_expansion_keeps_total_unchanged(self):
         self.boot()
-        self.run_lua("for i=1,8 do db.roles.Realm['Alt'..i]={gold=i} end; money=1000000; api.OnEvent(frames[1],'PLAYER_MONEY'); local total=api.GetTotalGold(); local function countRows() local n=0; for _,f in ipairs(frames) do if type(f.name)=='table' and type(f.gold)=='table' and f:IsShown() then n=n+1 end end; return n end; assert(countRows()==5); clickText('展开全部'); assert(countRows()==9 and api.GetTotalGold()==total); clickText('收起列表'); assert(countRows()==5 and api.GetTotalGold()==total)")
+        self.run_lua("for _,f in ipairs(frames) do if f.label and f.label:GetText()=='金币来源' then f.scripts.OnClick() end end; for i=1,8 do db.roles.Realm['Alt'..i]={gold=i} end; money=1000000; api.OnEvent(frames[1],'PLAYER_MONEY'); local total=api.GetTotalGold(); local function countRows() local n=0; for _,f in ipairs(frames) do if type(f.name)=='table' and type(f.gold)=='table' and f:IsVisible() then n=n+1 end end; return n end; assert(countRows()==5); clickText('展开全部'); assert(countRows()==9 and api.GetTotalGold()==total); clickText('收起列表'); assert(countRows()==5 and api.GetTotalGold()==total)")
 
     def test_old_save_and_backup_independence(self):
         self.run_lua("GoldTargetTrackerData={target=7000000,name='Custom',records={['2026-10-20']=110},hourly={['2026-10-20 12']=110},firstTotal=100,accountBase=true,roles={Realm={Alt={gold=40,pos={point='CENTER',x=1,y=2}}}},autoUseItems={'Token'},pos={point='CENTER',x=10,y=20},hidePanelInCombat=false}")
@@ -103,7 +103,7 @@ class AddonTests(unittest.TestCase):
 
     def test_auto_use_page_has_readable_rows_above_background(self):
         self.boot()
-        self.run_lua("local c=api.GetAutoUseContent(); assert(c.listScroll and c.listContent, 'missing scroll list'); assert(c.input.font[2]>=14 and c.input.parent==c.listScroll.parent); for _,line in ipairs(c.lines) do assert(line.name.parent==line.removeBtn.parent and line.name.parent==line.row); assert(line.name.font[2]>=14 and line.name.textColor[1]>=0.9) end; local host; for _,f in ipairs(frames) do if f.width==604 and f.height==684 then host=f end end; local page=c.input.parent.parent; assert(page~=host and page.parent==host.parent, 'auto page inherits shrinking content scale')")
+        self.run_lua("local c=api.GetAutoUseContent(); assert(c.listScroll and c.listContent, 'missing scroll list'); assert(c.input.font[2]>=14 and c.input.parent==c.listScroll.parent); for _,line in ipairs(c.lines) do assert(line.name.parent==line.removeBtn.parent and line.name.parent==line.row); assert(line.name.font[2]>=14 and line.name.textColor[1]>=0.9) end; local page=c.input.parent.parent; assert(page.parent==GoldTargetTrackerOverviewPage.parent,'auto page not at viewport level'); while page do assert(page:GetScale()==1,'auto page font shrinks'); page=page.parent end")
 
     def test_auto_use_full_list_scrolls_and_remove_preserves_other_items(self):
         self.run_lua("GoldTargetTrackerData={autoUseItems={}}; for i=1,20 do GoldTargetTrackerData.autoUseItems[i]='Item'..i end")
@@ -116,7 +116,7 @@ class AddonTests(unittest.TestCase):
 
     def test_settings_design_fits_canvas_after_resize(self):
         self.boot()
-        self.run_lua("local host; for _,f in ipairs(frames) do if f.width==604 and f.height==684 then host=f end end; assert(host); local viewport=host.parent; assert(viewport~=GoldTargetTrackerSettingsPanel and viewport.scripts.OnSizeChanged, 'fixed content has no canvas viewport'); for _,size in ipairs({{460,540},{604,684},{800,800},{400,450}}) do viewport:SetSize(size[1],size[2]); assert(host:GetWidth()*host:GetScale()<=size[1]+0.01 and host:GetHeight()*host:GetScale()<=size[2]+0.01, 'content overflows canvas') end")
+        self.run_lua("for _,page in ipairs({GoldTargetTrackerOverviewPage,GoldTargetTrackerIncomePage,GoldTargetTrackerOptionsPage}) do assert(page.content and page.scripts.OnSizeChanged); for _,size in ipairs({{460,540},{604,684},{800,800},{320,450}}) do page:SetSize(size[1],size[2]); assert(page.content:GetWidth()<=size[1] and page.content:GetScale()==1, 'page font resized or horizontal overflow'); assert(page:GetScrollChild()==page.content) end end")
 
     def test_four_tabs_with_combat_control_in_settings(self):
         self.boot()
