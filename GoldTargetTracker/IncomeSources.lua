@@ -15,6 +15,7 @@ Income.categories = {
 local keys = {}
 for _, category in ipairs(Income.categories) do keys[category.key] = true end
 local MATCH_SECONDS = 1
+local STARTUP_SECONDS = 0.5
 
 local function Amount(value)
     if issecretvalue and issecretvalue(value) then return false end
@@ -52,7 +53,7 @@ local function Recent(entries)
 end
 
 function Income:Evidence(category, amount)
-    if not self.running or not Amount(amount) or amount == 0 then return end
+    if not self.running or not self.inWorld or not Amount(amount) or amount == 0 then return end
     self.evidence = Recent(self.evidence)
     local entry = { category = category, amount = amount, at = GetTime() }
     self.evidence[#self.evidence + 1] = entry
@@ -90,7 +91,7 @@ function Income:Flush(force)
                     end
                 end
             end
-            if gain.amount > 0 then
+            if gain.amount > 0 and not gain.initializing then
                 self.data.totals.other = (self.data.totals.other or 0) + gain.amount
                 changed = true
             end
@@ -147,7 +148,7 @@ function Income:ObserveBanks(baseline)
 end
 
 function Income:Withdrawal(kind, amount)
-    if not self.running or not Amount(amount) or amount == 0 then return end
+    if not self.running or not self.inWorld or not Amount(amount) or amount == 0 then return end
     self.withdrawals[#self.withdrawals + 1] = { kind = kind, amount = amount, at = GetTime() }
     self:ObserveBanks(false)
 end
@@ -268,36 +269,66 @@ local function LootMoney(message)
     return copper
 end
 
-function Income:Start(data, changed)
+function Income:EnterWorld()
+    if self.inWorld then return end
+    self.inWorld, self.settling = true, true
+    self.worldGeneration = (self.worldGeneration or 0) + 1
+    self.banks, self.bankDrops, self.withdrawals = {}, {}, {}
+    local balance = GetMoney()
+    self.balance = Amount(balance) and balance or nil
+    self.awaitingInitialBalance = self.balance == nil or self.balance == 0
+    self:ObserveBanks(true)
+    local generation, worldGeneration = self.generation, self.worldGeneration
+    C_Timer.After(STARTUP_SECONDS, function()
+        if not self.running or not self.inWorld or self.generation ~= generation
+            or self.worldGeneration ~= worldGeneration then return end
+        -- Observe the final loading delta with the same guard; known rewards still match.
+        self:OnEvent("PLAYER_MONEY")
+        self.settling = false
+    end)
+end
+
+function Income:Start(data, changed, inWorld)
     self.generation = (self.generation or 0) + 1
     self.data, self.changed, self.running = data, changed, true
     self.gains, self.evidence, self.quests, self.banks, self.mail = {}, {}, {}, {}, {}
     self.bankDrops, self.withdrawals = {}, {}
     self.scheduled, self.guildOpen, self.merchantBags, self.tradeAmount = false, false, nil, nil
     self.tradeAccepted, self.tradeEvidence, self.mailCount = false, nil, 0
-    self.balance = GetMoney()
-    if not Amount(self.balance) then self.balance = nil end
-    self:ObserveBanks(true)
+    self.balance, self.inWorld, self.settling = nil, false, false
     self:InstallHooks()
+    if inWorld then self:EnterWorld() end
 end
 
 function Income:Stop()
     self:Flush(true)
     self.running = false
+    self.inWorld = false
     self.generation = self.generation + 1
 end
 
 function Income:OnEvent(event, ...)
     if not self.running then return end
+    if event == "PLAYER_ENTERING_WORLD" then
+        self:EnterWorld()
+        return
+    elseif event == "PLAYER_LEAVING_WORLD" then
+        self:Flush(true)
+        self.inWorld, self.balance = false, nil
+        self.evidence = {}
+        return
+    end
+    if not self.inWorld then return end
     if event == "PLAYER_MONEY" then
         self:ObserveBanks(false)
         local balance = GetMoney()
         if not Amount(balance) then return end
         if self.balance and balance > self.balance then
-            self.gains[#self.gains + 1] = { amount = balance - self.balance, at = GetTime() }
+            self.gains[#self.gains + 1] = { amount = balance - self.balance, at = GetTime(), initializing = self.settling or self.awaitingInitialBalance }
             self:Schedule()
         end
         self.balance = balance
+        if balance > 0 then self.awaitingInitialBalance = false end
     elseif event == "ACCOUNT_MONEY" or event == "GUILDBANK_UPDATE_MONEY" then
         self:ObserveBanks(false)
     elseif event == "BANKFRAME_OPENED" then
@@ -354,6 +385,7 @@ function Income:OnEvent(event, ...)
 end
 
 Income.events = {
+    "PLAYER_LEAVING_WORLD",
     "QUEST_TURNED_IN", "CHAT_MSG_MONEY", "MERCHANT_SHOW", "MERCHANT_UPDATE", "MAIL_SHOW", "MAIL_INBOX_UPDATE",
     "MAIL_FAILED", "TRADE_SHOW", "TRADE_MONEY_CHANGED", "TRADE_ACCEPT_UPDATE", "TRADE_REQUEST_CANCEL",
     "BANKFRAME_OPENED", "GUILDBANKFRAME_OPENED", "GUILDBANKFRAME_CLOSED", "GUILDBANK_UPDATE_MONEY",

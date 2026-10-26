@@ -6,7 +6,9 @@ import unittest
 class IncomeTests(unittest.TestCase):
     setUp = test_addon.AddonTests.setUp
     run_lua = test_addon.AddonTests.run_lua
-    boot = test_addon.AddonTests.boot
+    def boot(self):
+        test_addon.AddonTests.boot(self)
+        self.run_lua("advance(0.5)")
 
     def totals(self, body):
         self.run_lua("local totals=db.incomeSources.totals; " + body)
@@ -16,6 +18,36 @@ class IncomeTests(unittest.TestCase):
         self.totals("assert(next(totals)==nil); assert(db.incomeSources.startedAt==time())")
         self.run_lua("api.OnEvent(frames[1],'PLAYER_MONEY'); advance(2)")
         self.totals("assert(next(totals)==nil)")
+
+    def test_loading_wallet_recovery_before_entering_world_is_not_income(self):
+        self.run_lua("money=0; api.OnEvent(frames[1],'ADDON_LOADED','GoldTargetTracker'); api.OnEvent(frames[1],'PLAYER_LOGIN'); money=7654321; api.OnEvent(frames[1],'PLAYER_MONEY'); api.OnEvent(frames[1],'PLAYER_ENTERING_WORLD'); advance(2); db=GoldTargetTrackerData")
+        self.totals("assert(next(totals)==nil, 'initial wallet booked as income')")
+        self.run_lua("money=money+123; api.OnEvent(frames[1],'PLAYER_MONEY'); advance(2)")
+        self.totals("assert(totals.other==123)")
+
+    def test_loading_wallet_recovery_just_after_entering_world_is_not_income(self):
+        self.run_lua("money=0; api.OnEvent(frames[1],'ADDON_LOADED','GoldTargetTracker'); api.OnEvent(frames[1],'PLAYER_LOGIN'); api.OnEvent(frames[1],'PLAYER_ENTERING_WORLD'); advance(0.1); money=7654321; api.OnEvent(frames[1],'PLAYER_MONEY'); advance(2); db=GoldTargetTrackerData")
+        self.totals("assert(next(totals)==nil, 'late initialization booked as other')")
+
+    def test_first_positive_wallet_after_slow_zero_load_only_establishes_baseline(self):
+        self.run_lua("money=0; api.OnEvent(frames[1],'ADDON_LOADED','GoldTargetTracker'); api.OnEvent(frames[1],'PLAYER_LOGIN'); api.OnEvent(frames[1],'PLAYER_ENTERING_WORLD'); advance(3); money=7654321; api.OnEvent(frames[1],'PLAYER_MONEY'); advance(2); db=GoldTargetTrackerData")
+        self.totals("assert(next(totals)==nil, 'slow first wallet load booked as income')")
+        self.run_lua("money=money+123; api.OnEvent(frames[1],'PLAYER_MONEY'); advance(2)")
+        self.totals("assert(totals.other==123)")
+
+    def test_known_reward_during_initial_settle_is_still_confirmed(self):
+        self.run_lua("money=0; api.OnEvent(frames[1],'ADDON_LOADED','GoldTargetTracker'); api.OnEvent(frames[1],'PLAYER_LOGIN'); api.OnEvent(frames[1],'PLAYER_ENTERING_WORLD'); api.OnEvent(frames[1],'QUEST_TURNED_IN',101,0,123); money=123; api.OnEvent(frames[1],'PLAYER_MONEY'); advance(2); db=GoldTargetTrackerData")
+        self.totals("assert(totals.quest==123 and not totals.other)")
+
+    def test_leaving_world_wallet_clear_and_recovery_do_not_create_income(self):
+        self.boot()
+        self.run_lua("api.OnEvent(frames[1],'PLAYER_LEAVING_WORLD'); money=0; api.OnEvent(frames[1],'PLAYER_MONEY'); money=8765432; api.OnEvent(frames[1],'PLAYER_MONEY'); api.OnEvent(frames[1],'PLAYER_ENTERING_WORLD'); advance(2)")
+        self.totals("assert(next(totals)==nil)")
+
+    def test_reset_all_keeps_source_tracker_active_in_current_world(self):
+        self.boot()
+        self.run_lua("api.ResetAllData(); advance(0.5); money=money+321; api.OnEvent(frames[1],'PLAYER_MONEY'); advance(2)")
+        self.totals("assert(totals.other==321)")
 
     def test_world_quest_evidence_before_and_after_money(self):
         self.boot()

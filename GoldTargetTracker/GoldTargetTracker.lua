@@ -1,6 +1,6 @@
 --[[
-    GoldTargetTracker（金币攒钱计划）v2.2.0-rc11
-    魔兽世界正式服（至暗之夜 12.x，国服）金币目标追踪插件
+    金币进度条（GoldTargetTracker）v2.2.0-rc12
+    魔兽世界正式服（至暗之夜 12.x，国服）金币进度追踪插件
     功能：
       1. 可视化面板：当前金币 / 战团银行金币 / 总金币 / 进度条 / 各角色金币列表
       2. 目标值可设定：总目标默认 500 万金（EditBox 回车保存）
@@ -41,6 +41,7 @@ local playerLoggedIn = false -- 存档已加载不代表玩家余额已就绪；
 
 -- ============ 常量与初始化 ============
 local DEFAULT_TARGET  = 5000000    -- 默认总目标（金）
+local DISPLAY_NAME = "金币进度条"
 local SECONDS_PER_HOUR = 3600      -- 一小时的秒数
 local SECONDS_PER_DAY = 86400      -- 一天的秒数
 local DAYS_PER_MONTH  = 30         -- 按 30 天/月估算
@@ -157,19 +158,19 @@ local function InitDB()
     -- 两侧都可能承载用户真实数据，插件不自动选择赢家：保持两个全局原样（含嵌套内容）并暂停。
     if mainValid and not HasSubstanceData(DB)
         and ValidData(GoldTargetTrackerBackup) and HasSubstanceData(GoldTargetTrackerBackup) then
-        print("|cffff4040[GoldTargetTracker]|r 存档冲突：主存档无任何历史数据（无角色快照、每日记录、小时记录与首次基准），"
+        print("|cffff4040[金币进度条]|r 存档冲突：主存档无任何历史数据（无角色快照、每日记录、小时记录与首次基准），"
             .. "恢复快照中仍有历史数据。为避免自动覆盖，两套数据均已原样保留、插件已暂停；请手动确认使用哪一份后再恢复。")
         return false
     end
     -- 结构损坏的主存档 + 空备份 {} 不构成有效恢复：继续恢复会用 {} 覆盖主存档，同样属于静默丢数据。
     if DB ~= nil and not mainValid and ValidData(GoldTargetTrackerBackup) and next(GoldTargetTrackerBackup) == nil then
-        print("|cffff4040[GoldTargetTracker]|r 存档异常：主存档结构损坏，而恢复快照为空，无法用于恢复。"
+        print("|cffff4040[金币进度条]|r 存档异常：主存档结构损坏，而恢复快照为空，无法用于恢复。"
             .. "为避免用空数据覆盖，两套数据均已原样保留、插件已暂停；请手动从独立备份恢复。")
         return false
     end
     if not mainValid then
         if (DB ~= nil or GoldTargetTrackerBackup ~= nil) and not ValidData(GoldTargetTrackerBackup) then
-            print("|cffff4040[GoldTargetTracker]|r 存档结构异常且无有效恢复快照，插件已暂停；未覆盖原数据。请使用独立备份恢复。")
+            print("|cffff4040[金币进度条]|r 存档结构异常且无有效恢复快照，插件已暂停；未覆盖原数据。请使用独立备份恢复。")
             return false
         end
         DB = type(GoldTargetTrackerBackup) == "table" and CopyData(GoldTargetTrackerBackup) or {}
@@ -208,17 +209,16 @@ local function InitDB()
                 DB.autoUseItems = CopyData(GoldTargetTrackerBackup.autoUseItems)
             end
             if #restored > 0 then
-                print("|cff4da6ff[GoldTargetTracker]|r 主存档未加载，已从备份恢复：" .. table.concat(restored, "、"))
+                print("|cff4da6ff[金币进度条]|r 主存档未加载，已从备份恢复：" .. table.concat(restored, "、"))
             else
-                print("|cff4da6ff[GoldTargetTracker]|r 未读取到历史存档（首次使用或存档加载异常），将从本次登录开始记录")
+                print("|cff4da6ff[金币进度条]|r 未读取到历史存档（首次使用或存档加载异常），将从本次登录开始记录")
             end
         else
-            print("|cff4da6ff[GoldTargetTracker]|r 未读取到历史存档（首次使用或存档加载异常），将从本次登录开始记录")
+            print("|cff4da6ff[金币进度条]|r 未读取到历史存档（首次使用或存档加载异常），将从本次登录开始记录")
         end
     end
     -- 兼容旧存档/损坏数据：类型不合法时重建字段
     DB.target  = (type(DB.target) == "number" and DB.target > 0) and DB.target or DEFAULT_TARGET
-    DB.name    = (type(DB.name) == "string" and DB.name ~= "") and DB.name or "金币攒钱计划"
     DB.records = (type(DB.records) == "table") and DB.records or {}
     DB.hourly  = (type(DB.hourly) == "table") and DB.hourly or {}
     DB.roles   = (type(DB.roles) == "table") and DB.roles or {}
@@ -231,7 +231,7 @@ local function InitDB()
     if DB.showMinimapIcon == nil then DB.showMinimapIcon = true end
     DB.incomeSources = DB.incomeSources or Income.NewData()
     -- 加载诊断：聊天框输出当前读取到的历史角色快照数量
-    print("|cff4da6ff[GoldTargetTracker]|r 存档加载完成，当前历史角色快照 " .. CountRoles(DB.roles) .. " 个")
+    print("|cff4da6ff[金币进度条]|r 存档加载完成，当前历史角色快照 " .. CountRoles(DB.roles) .. " 个")
     SyncBackup()
     dataReady = true
     return true
@@ -933,20 +933,20 @@ end
 
 local function OpenPluginSettings()
     if InCombatLockdown and InCombatLockdown() then
-        print("|cffffcc66[GoldTargetTracker]|r 请脱离战斗后打开设置。")
+        print("|cffffcc66[金币进度条]|r 请脱离战斗后打开设置。")
         return
     end
     if Settings and Settings.OpenToCategory and settingsCategory then
         Settings.OpenToCategory(settingsCategory:GetID())
         if SelectSettingsPage then SelectSettingsPage() end
     else
-        print("|cffff4040[GoldTargetTracker]|r 设置界面尚未就绪。")
+        print("|cffff4040[金币进度条]|r 设置界面尚未就绪。")
     end
 end
 
 local function OpenPanelMenu(owner)
     if not (MenuUtil and MenuUtil.CreateContextMenu) then
-        print("|cffff4040[GoldTargetTracker]|r 当前客户端的右键菜单 API 不可用。")
+        print("|cffff4040[金币进度条]|r 当前客户端的右键菜单 API 不可用。")
         return
     end
     MenuUtil.CreateContextMenu(owner, function(_, menu)
@@ -1192,20 +1192,6 @@ RefreshPanel = function()
             end
         end
 
-        -- 插件名称下拉菜单：同步当前名称（仅设置界面有该字段）
-        if content.nameDD then
-            if DB.name == "金币攒钱计划" then
-                UIDropDownMenu_SetSelectedID(content.nameDD, 1)
-                UIDropDownMenu_SetText(content.nameDD, "金币攒钱计划")
-            elseif DB.name == "金币目标追踪" then
-                UIDropDownMenu_SetSelectedID(content.nameDD, 2)
-                UIDropDownMenu_SetText(content.nameDD, "金币目标追踪")
-            else
-                UIDropDownMenu_SetSelectedID(content.nameDD, 3)
-                UIDropDownMenu_SetText(content.nameDD, "自定义")
-            end
-        end
-
         -- XP 条内数值：当前金币 / 目标金币（万单位；仅主界面条有该字段，设置界面实例无则自动跳过）
         if content.miniGoldText then
             local miniText = "|cffffffff" .. FormatWan2(total) .. "|r  |cff9a9ab8/ |r|cffffffff" .. FormatWan(DB.target) .. "|r"
@@ -1361,7 +1347,7 @@ local function ResetStatData()
     UpdateRoleSnapshot()
     SyncBackup()
     RefreshPanel()
-    print("|cff4da6ff[GoldTargetTracker]|r 已重置统计：今日收益已从当前余额重新累计；角色资产及历史记录已保留")
+    print("|cff4da6ff[金币进度条]|r 已重置统计：今日收益已从当前余额重新累计；角色资产及历史记录已保留")
 end
 
 -- 重置所有：包含重置统计全部内容，并额外清除最近 7 天（全部每日记录/全部小时打点/首次基准）
@@ -1373,11 +1359,11 @@ local function ResetAllData()
     DB.hourly = {}
     DB.records = {}
     DB.incomeSources = Income.NewData()
-    if playerLoggedIn then Income:Start(DB.incomeSources, Income.changed) end
+    if playerLoggedIn then Income:Start(DB.incomeSources, Income.changed, true) end
     UpdateRoleSnapshot()
     SyncBackup()
     RefreshPanel()
-    print("|cff4da6ff[GoldTargetTracker]|r 已重置所有：全部统计已清空（含最近 7 天与全部历史记录），统计从当前总金币重新开始")
+    print("|cff4da6ff[金币进度条]|r 已重置所有：全部统计已清空（含最近 7 天与全部历史记录），统计从当前总金币重新开始")
 end
 
 -- 确认弹窗（原生暴雪确认框）：点击重置按钮后弹出，用户确认后执行，取消不生效
@@ -1626,7 +1612,7 @@ local function CreateMinimapButton()
     -- 鼠标提示
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("|cff4da6ff金币攒钱计划|r")
+        GameTooltip:AddLine("|cff4da6ff" .. DISPLAY_NAME .. "|r")
         GameTooltip:AddLine("左键打开/关闭面板")
         GameTooltip:AddLine("拖动可移动按钮")
         GameTooltip:Show()
@@ -1837,7 +1823,7 @@ ProcessAutoUseQueue = function()
         task.beforeCount = nil
         task.attempts = (task.attempts or 0) + 1
         if task.attempts >= 3 then
-            print("|cffffcc66[GoldTargetTracker]|r 已尝试使用但调用受阻，任务已保留：" .. tostring(useError))
+            print("|cffffcc66[金币进度条]|r 已尝试使用但调用受阻，任务已保留：" .. tostring(useError))
         end
         SyncBackup()
         ScheduleAutoUseQueue(2)
@@ -1857,7 +1843,7 @@ ProcessAutoUseQueue = function()
         if afterCount < beforeCount then
             task.count = math.max(0, (task.count or 1) - (beforeCount - afterCount))
             task.attempts = 0
-            print("|cff4da6ff[GoldTargetTracker]|r 已尝试使用：" .. tostring(task.name or task.itemID))
+            print("|cff4da6ff[金币进度条]|r 已尝试使用：" .. tostring(task.name or task.itemID))
         else
             local stillCooling = false
             -- 槽位可能在调用后移动；必须按当前背包重新定位同一 itemID 后判断冷却。
@@ -1880,7 +1866,7 @@ ProcessAutoUseQueue = function()
                 return
             end
             -- shortcut: 无消耗证据时保留任务并等待交互/战斗状态变化，有可靠物品结果 API 后替换。
-            print("|cffffcc66[GoldTargetTracker]|r 已尝试使用但未确认消耗，任务已保留，等待条件变化：" .. tostring(task.name or task.itemID))
+            print("|cffffcc66[金币进度条]|r 已尝试使用但未确认消耗，任务已保留，等待条件变化：" .. tostring(task.name or task.itemID))
             SyncBackup()
             return
         end
@@ -1959,17 +1945,17 @@ local function OnEvent(self, event, ...)
             end
             local ok1, err1 = pcall(CreatePanel)
             if not ok1 then
-                print("|cffff4040GoldTargetTracker 创建面板错误: |r" .. tostring(err1))
+                print("|cffff4040金币进度条 创建面板错误: |r" .. tostring(err1))
             end
             local ok2, err2 = pcall(CreateMinimapButton)
             if not ok2 then
-                print("|cffff4040GoldTargetTracker 创建小地图按钮错误: |r" .. tostring(err2))
+                print("|cffff4040金币进度条 创建小地图按钮错误: |r" .. tostring(err2))
             end
             -- 设置面板（Esc→选项→插件）：依赖 DB 已初始化，必须在 InitDB 之后创建。
             -- 若放文件顶层（加载期）执行，界面创建访问 DB 会因 DB 为 nil 崩溃
             local ok3, settingsPanelRet = pcall(CreateSettingsPanel)
             if not ok3 then
-                print("|cffff4040GoldTargetTracker 创建设置面板错误: |r" .. tostring(settingsPanelRet))
+                print("|cffff4040金币进度条 创建设置面板错误: |r" .. tostring(settingsPanelRet))
             else
                 settingsPanel = settingsPanelRet
                 if Settings and Settings.RegisterCanvasLayoutCategory then
@@ -2126,13 +2112,13 @@ local function DebugDump()
     local recentAvg, avgSpanDays = GetNaturalDailyAvg()
     local onlineSec = GetTodayOnlineSeconds()
 
-    print("|cff4da6ff[GoldTargetTracker]|r ===== 存档诊断 " .. today .. " =====")
+    print("|cff4da6ff[金币进度条]|r ===== 存档诊断 " .. today .. " =====")
 
     -- 基础状态
     local myRealm = GetRealmName()
     local myName = UnitName("player")
     print("当前角色：|cffffffff" .. (myName or "?") .. "|r（" .. (myRealm or "?") .. "）")
-    print("计划名称：|cffffffff" .. tostring(DB.name) .. "|r    目标：|cffffd24d" .. FormatNumber(DB.target) .. "|r 金")
+    print("插件名称：|cffffffff" .. DISPLAY_NAME .. "|r    目标：|cffffd24d" .. FormatNumber(DB.target) .. "|r 金")
 
     -- 实时统计（全账号口径）
     print("-- 实时统计（全账号口径）--")
@@ -2220,7 +2206,7 @@ local function DebugDump()
             print("  " .. i .. ". " .. name)
         end
     end
-    print("|cff4da6ff[GoldTargetTracker]|r ===== 诊断结束 =====")
+    print("|cff4da6ff[金币进度条]|r ===== 诊断结束 =====")
 end
 
 -- ============ 命令：/gtt 与 /goldtracker ============
@@ -2234,7 +2220,7 @@ SlashCmdList["GOLDTARGETTRACKER"] = function(msg)
             DebugDump()
             return
         end
-        print("|cff4da6ff[GoldTargetTracker]|r 未知命令：/gtt " .. arg .. "（支持 /gtt debug 诊断）")
+        print("|cff4da6ff[金币进度条]|r 未知命令：/gtt " .. arg .. "（支持 /gtt debug 诊断）")
         return
     end
     TogglePanel()
@@ -2276,25 +2262,25 @@ end
 local function AddAutoUseItem(name)
     name = (type(name) == "string") and name:gsub("^%s+", ""):gsub("%s+$", "") or ""
     if name == "" then
-        print("|cff4da6ff[GoldTargetTracker]|r 请输入物品名称")
+        print("|cff4da6ff[金币进度条]|r 请输入物品名称")
         return
     end
     DB.autoUseItems = (type(DB.autoUseItems) == "table") and DB.autoUseItems or {}
     for _, v in ipairs(DB.autoUseItems) do
         if v == name then
-            print("|cff4da6ff[GoldTargetTracker]|r 物品「" .. name .. "」已在自动使用名单中")
+            print("|cff4da6ff[金币进度条]|r 物品「" .. name .. "」已在自动使用名单中")
             return
         end
     end
     if #DB.autoUseItems >= MAX_AUTO_ITEMS then
-        print("|cff4da6ff[GoldTargetTracker]|r 自动使用名单已满（最多 " .. MAX_AUTO_ITEMS .. " 项）")
+        print("|cff4da6ff[金币进度条]|r 自动使用名单已满（最多 " .. MAX_AUTO_ITEMS .. " 项）")
         return
     end
     SnapshotBags()
     table.insert(DB.autoUseItems, name)
     SyncBackup()
     RefreshAutoUseList()
-    print("|cff4da6ff[GoldTargetTracker]|r 已添加自动使用物品：「" .. name .. "」")
+    print("|cff4da6ff[金币进度条]|r 已添加自动使用物品：「" .. name .. "」")
 end
 
 -- 按序号移除名单中的物品
@@ -2305,7 +2291,7 @@ local function RemoveAutoUseItem(index)
     table.remove(DB.autoUseItems, index)
     SyncBackup()
     RefreshAutoUseList()
-    print("|cff4da6ff[GoldTargetTracker]|r 已移除自动使用物品：「" .. name .. "」")
+    print("|cff4da6ff[金币进度条]|r 已移除自动使用物品：「" .. name .. "」")
 end
 
 -- 清空自动使用名单
@@ -2314,7 +2300,7 @@ local function ClearAutoUseItems()
     DB.autoUseQueue = {}
     SyncBackup()
     RefreshAutoUseList()
-    print("|cff4da6ff[GoldTargetTracker]|r 已清空自动使用物品名单")
+    print("|cff4da6ff[金币进度条]|r 已清空自动使用物品名单")
 end
 
 -- 创建自动使用页内容：说明文字 + 输入框 + 确定按钮 + 已保存列表（每行移除按钮）+ 清空按钮
@@ -2370,12 +2356,12 @@ local function CreateAutoUseContent(containerFrame)
         if DB.autoUseEnabled == false then
             SnapshotBags()
             DB.autoUseEnabled = true
-            print("|cff4da6ff[GoldTargetTracker]|r 已启用自动使用")
+            print("|cff4da6ff[金币进度条]|r 已启用自动使用")
         else
             SnapshotBags()
             DB.autoUseEnabled = false
             DB.autoUseQueue = {}
-            print("|cff4da6ff[GoldTargetTracker]|r 已停用自动使用并清空待处理队列")
+            print("|cff4da6ff[金币进度条]|r 已停用自动使用并清空待处理队列")
         end
         SyncBackup()
         RefreshToggleText()
@@ -2465,7 +2451,7 @@ end
 CreateSettingsPanel = function()
     local root = CreateFrame("Frame", "GoldTargetTrackerSettingsPanel", UIParent, "BackdropTemplate")
     settingsPanel = root
-    root.name = DB.name or "金币攒钱计划"
+    root.name = DISPLAY_NAME
     root:SetSize(770, 710)
     root:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -2523,7 +2509,7 @@ CreateSettingsPanel = function()
     nav:SetPoint("TOPLEFT", root, "TOPLEFT", 10, -12)
     nav:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", 10, 12)
     nav:SetWidth(138)
-    local navTitle = MakeText(nav, "金币攒钱计划", 14, GOLD, "TOPLEFT", nav, "TOPLEFT", 4, -2, "OUTLINE")
+    local navTitle = MakeText(nav, DISPLAY_NAME, 14, GOLD, "TOPLEFT", nav, "TOPLEFT", 4, -2, "OUTLINE")
 
     local contentViewport = CreateFrame("Frame", nil, root)
     contentViewport:SetPoint("TOPLEFT", root, "TOPLEFT", 154, -12)
@@ -2621,7 +2607,7 @@ CreateSettingsPanel = function()
 
     -- ===== 总览：目标进度、收益表现、目标预测与趋势 =====
     local progressSection = MakeSection(pageGold, "目标进度", 0, 136)
-    local dashboardTitle = MakeText(progressSection, DB.name or "金币攒钱计划", 14, PALE,
+    local dashboardTitle = MakeText(progressSection, DISPLAY_NAME, 14, PALE,
         "TOPLEFT", progressSection, "TOPLEFT", 14, -28, "OUTLINE")
     dashboardTitle:SetPoint("TOPRIGHT", progressSection, "TOPRIGHT", -14, -28)
     dashboardTitle:SetHeight(18)
@@ -2822,47 +2808,11 @@ CreateSettingsPanel = function()
     customTarget:SetScript("OnEscapePressed", function(self) self:SetText(tostring(DB.target)); self:ClearFocus() end)
     customTarget:SetScript("OnEnterPressed", function(self)
         local value = tonumber(self:GetText())
-        if value and value > 0 then SetTarget(value) else print("|cffff4040[GoldTargetTracker]|r 自定义目标必须是大于 0 的金币数。") end
+        if value and value > 0 then SetTarget(value) else print("|cffff4040[金币进度条]|r 自定义目标必须是大于 0 的金币数。") end
         self:SetText(tostring(DB.target))
         self:ClearFocus()
     end)
     MakeText(targetSection, "自定义，回车保存", 14, MUTED, "LEFT", customTarget, "RIGHT", 8, 0)
-
-    local nameSection = MakeSection(pageSettings, "插件名称", 0, 118)
-    MakeNote(nameSection, "预设或自定义名称。", -28, 16)
-    local nameA = CreateFrame("Button", nil, nameSection, "UIPanelButtonTemplate")
-    nameA:SetSize(150, 24)
-    nameA:SetPoint("TOPLEFT", nameSection, "TOPLEFT", 14, -50)
-    nameA:SetPoint("TOPRIGHT", nameSection, "TOP", -2, -50)
-    nameA:SetText("金币攒钱计划")
-    local nameB = CreateFrame("Button", nil, nameSection, "UIPanelButtonTemplate")
-    nameB:SetSize(150, 24)
-    nameB:SetPoint("TOPLEFT", nameSection, "TOP", 2, -50)
-    nameB:SetPoint("TOPRIGHT", nameSection, "TOPRIGHT", -14, -50)
-    nameB:SetText("金币目标追踪")
-    local customName = CreateFrame("EditBox", nil, nameSection, "InputBoxTemplate")
-    customName:SetSize(160, 24)
-    customName:SetFont(FONT, 14, "")
-    customName:SetAutoFocus(false)
-    customName:SetPoint("TOPLEFT", nameSection, "TOPLEFT", 14, -82)
-    customName:SetMaxLetters(48)
-    customName:SetText(DB.name or "金币攒钱计划")
-    local function SetName(value)
-        value = type(value) == "string" and value:gsub("^%s+", ""):gsub("%s+$", "") or ""
-        if value == "" then return end
-        DB.name = value
-        root.name = value
-        if settingsCategory then pcall(function() settingsCategory.name = value end) end
-        customName:SetText(value)
-        if dashboardTitle then dashboardTitle:SetText(value) end
-        SyncBackup()
-        RefreshPanel()
-    end
-    nameA:SetScript("OnClick", function() SetName("金币攒钱计划") end)
-    nameB:SetScript("OnClick", function() SetName("金币目标追踪") end)
-    customName:SetScript("OnEscapePressed", function(self) self:SetText(DB.name or "金币攒钱计划"); self:ClearFocus() end)
-    customName:SetScript("OnEnterPressed", function(self) SetName(self:GetText()); self:ClearFocus() end)
-    MakeText(nameSection, "回车保存", 14, MUTED, "LEFT", customName, "RIGHT", 8, 0)
 
     local maintenanceSection = MakeSection(pageSettings, "数据维护", 0, 124)
     MakeNote(maintenanceSection, "重置须确认，保留角色资产。", -28, 16)
@@ -2879,7 +2829,7 @@ CreateSettingsPanel = function()
     resetAll:SetText("重置所有")
     resetAll:SetScript("OnClick", function() StaticPopup_Show("GOLDTT_RESET_ALL") end)
     MakeNote(maintenanceSection, "重置今日保留来源；重置所有清空历史及来源。", -82, 32)
-    for _, button in ipairs({ target500, target700, nameA, nameB, resetStat, resetAll, expandRoles }) do
+    for _, button in ipairs({ target500, target700, resetStat, resetAll, expandRoles }) do
         button:GetFontString():SetFont(FONT, 14, "")
     end
 
@@ -2924,7 +2874,7 @@ CreateSettingsPanel = function()
         local naturalAvg, spanDays = GetNaturalDailyAvg()
         local preliminary = (spanDays or 0) < 7
 
-        dashboardTitle:SetText(DB.name or "金币攒钱计划")
+        dashboardTitle:SetText(DISPLAY_NAME)
         totalLabel:SetText("账号总金币：" .. FormatNumber(total) .. " 金")
         targetLabel:SetText("当前目标：" .. FormatNumber(DB.target) .. " 金")
         if need > 0 then
@@ -3049,8 +2999,6 @@ CreateSettingsPanel = function()
         incomeRows[i] = { name = name, amount = amount, percent = percent, bar = bar }
     end
     local incomeEmpty = MakeNote(incomeSection, "尚无收入；获得金币后自动累计，旧历史无法追溯。", 0, 32)
-    local incomeNotes = MakeSection(pageIncome, "统计说明", 0, 68)
-    MakeNote(incomeNotes, "拍卖按实领（含押金）统计；邮件、交易及小号转钱也计入。", -28, 32)
     local function IncomeMoney(copper)
         return FormatNumber(math.floor(copper / 10000)) .. " 金 "
             .. math.floor(copper / 100) % 100 .. " 银 " .. copper % 100 .. " 铜"
@@ -3096,8 +3044,8 @@ CreateSettingsPanel = function()
         UpdatePageHeight(pageIncome)
     end
     StackSections(pageGold, { progressSection, earningsSection, predictionSection, trendSection })
-    StackSections(pageIncome, { incomeHeader, incomeSection, incomeNotes, roleSection })
-    StackSections(pageSettings, { targetSection, nameSection, maintenanceSection, interfaceSection })
+    StackSections(pageIncome, { incomeHeader, incomeSection, roleSection })
+    StackSections(pageSettings, { targetSection, maintenanceSection, interfaceSection })
     pageGold.Reflow = RefreshGoldTargetDashboard
     pageIncome.Reflow = Income.Refresh
     Income.Refresh()

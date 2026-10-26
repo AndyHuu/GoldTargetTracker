@@ -8,6 +8,17 @@ class SettingsLayoutTests(unittest.TestCase):
     boot = test_addon.AddonTests.boot
     run_lua = test_addon.AddonTests.run_lua
 
+    def test_fixed_name_and_removed_name_editor_and_income_notes(self):
+        self.run_lua("GoldTargetTrackerData={name='Old custom title'}")
+        self.boot()
+        self.run_lua("""
+            assert(GoldTargetTrackerSettingsPanel.name=='金币进度条')
+            for _,f in ipairs(frames) do
+                assert(f.text~='统计说明' and f.text~='插件名称')
+                assert(f.text~='Old custom title' and f.text~='金币攒钱计划' and f.text~='金币目标追踪')
+            end
+        """)
+
     def test_compact_pages_fit_typical_settings_viewport(self):
         self.boot()
         self.run_lua("""
@@ -121,7 +132,7 @@ class SettingsLayoutTests(unittest.TestCase):
                     assert(f.parent.points.TOPRIGHT, 'asset card has fixed width')
                     assert(f.parent.parent==GoldTargetTrackerIncomePage.content)
                 end
-                if f.kind=='FontString' and f.text=='统计说明' then notes=f.parent end
+                if f.kind=='FontString' and f.text=='来源构成' then notes=f.parent end
                 if f.kind=='FontString' and f.wordWrap==true and f.parent.parent==GoldTargetTrackerOverviewPage.content then
                     assert(f.points.TOPLEFT and f.points.TOPRIGHT)
                     assert(f:GetHeight()>=24)
