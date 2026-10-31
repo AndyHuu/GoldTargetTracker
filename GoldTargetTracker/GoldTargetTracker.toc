@@ -1,10 +1,15 @@
-## Interface: 120100
+## Interface: 120107, 120105, 120100
 ## Title: 金币进度条
 ## Notes: 金币目标追踪：每日自动记账、今日收益、累计收益、目标进度、预计完成时间
 ## Author: GoldTargetTracker contributors
-## Version: 2.2.0-rc12
+## Version: 2.3.0-rc1
 ## Category: 界面增强
 ## SavedVariables: GoldTargetTrackerData, GoldTargetTrackerBackup
+## SavedVariablesPerCharacter: GoldTargetTrackerCycleData
+## OptionalDeps: AndyCraftCycle
 
 IncomeSources.lua
+CycleLists.lua
+ProfessionCycle.lua
+CycleSettings.lua
 GoldTargetTracker.lua

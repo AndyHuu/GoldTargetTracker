@@ -29,6 +29,7 @@
 
 local addonName, addon = ...
 local Income = addon.Income
+local Cycle = addon.Cycle
 
 -- TOC 已声明 ## SavedVariables: GoldTargetTrackerData, GoldTargetTrackerBackup
 -- GoldTargetTrackerData 为主存档（新文件名，规避旧变量文件加载异常）
@@ -1939,6 +1940,7 @@ local function OnEvent(self, event, ...)
         local addon = ...
         if addon == addonName then
             if not InitDB() then self:UnregisterAllEvents(); return end
+            Cycle:Initialize()
             if not reloadHookInstalled and hooksecurefunc and type(ReloadUI) == "function" then
                 local okHook = pcall(hooksecurefunc, "ReloadUI", function() isReloading = true end)
                 reloadHookInstalled = okHook and true or false
@@ -2557,6 +2559,8 @@ CreateSettingsPanel = function()
     local pageAuto = CreateFrame("Frame", nil, contentViewport)
     pageAuto:SetAllPoints(contentViewport)
     pageAuto:Hide()
+    local pageCycle = CreateScrollPage("GoldTargetTrackerCyclePage")
+    pageCycle:Hide()
     local pageSettings = CreateScrollPage("GoldTargetTrackerOptionsPage")
     pageSettings:Hide()
 
@@ -2582,11 +2586,12 @@ CreateSettingsPanel = function()
         if page == pageIncome and Income.Refresh then Income.Refresh() end
         if index == 1 and RefreshGoldTargetDashboard then RefreshGoldTargetDashboard() end
     end
-    SelectSettingsPage = function() SelectPage(pageSettings, 4) end
+    SelectSettingsPage = function() SelectPage(pageSettings, 5) end
     local navItems = {
         { text = "总览", page = pageGold },
         { text = "金币来源", page = pageIncome },
         { text = "自动使用", page = pageAuto },
+        { text = "专业循环", page = pageCycle },
         { text = "设置", page = pageSettings },
     }
     for i, item in ipairs(navItems) do
@@ -2756,6 +2761,7 @@ CreateSettingsPanel = function()
     local autoSection = MakeSection(pageAuto, "自动使用", -4, 660)
     autoSection:SetPoint("BOTTOMRIGHT", pageAuto, "BOTTOMRIGHT", -4, 4)
     CreateAutoUseContent(autoSection)
+    Cycle:BuildSettings(pageCycle, MakeSection, MakeText, StackSections)
 
     -- ===== 设置页中的战斗隐藏设置 =====
     local interfaceSection = MakeSection(pageSettings, "战斗隐藏", 0, 100)

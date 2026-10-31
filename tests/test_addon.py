@@ -26,6 +26,8 @@ class AddonTests(unittest.TestCase):
         self.lua.execute("addon={}")
         income = (ROOT / 'GoldTargetTracker' / 'IncomeSources.lua').read_text(encoding='utf-8-sig')
         self.lua.execute(income, 'GoldTargetTracker', self.lua.globals().addon)
+        for name in ('CycleLists.lua', 'ProfessionCycle.lua', 'CycleSettings.lua'):
+            self.lua.execute((ROOT / 'GoldTargetTracker' / name).read_text(encoding='utf-8'), 'GoldTargetTracker', self.lua.globals().addon)
         self.lua.globals().source = (ROOT / 'GoldTargetTracker' / 'GoldTargetTracker.lua').read_text(encoding='utf-8-sig') + EXPORTS
         self.lua.execute("api=assert(loadstring(source, '@GoldTargetTracker.lua'))('GoldTargetTracker',addon)")
 
@@ -118,9 +120,9 @@ class AddonTests(unittest.TestCase):
         self.boot()
         self.run_lua("for _,page in ipairs({GoldTargetTrackerOverviewPage,GoldTargetTrackerIncomePage,GoldTargetTrackerOptionsPage}) do assert(page.content and page.scripts.OnSizeChanged); for _,size in ipairs({{460,540},{604,684},{800,800},{320,450}}) do page:SetSize(size[1],size[2]); assert(page.content:GetWidth()<=size[1] and page.content:GetScale()==1, 'page font resized or horizontal overflow'); assert(page:GetScrollChild()==page.content) end end")
 
-    def test_four_tabs_with_combat_control_in_settings(self):
+    def test_five_tabs_with_combat_control_in_settings(self):
         self.boot()
-        self.run_lua("local count,settingsButton,checkbox=0; for _,f in ipairs(frames) do if f.kind=='Button' and type(f.label)=='table' then count=count+1; assert(f.label:GetText()~='界面与显示'); if f.label:GetText()=='设置' then settingsButton=f end end; if f.kind=='CheckButton' then checkbox=f end end; assert(count==4 and settingsButton and checkbox); settingsButton.scripts.OnClick(); assert(checkbox:IsVisible(), 'combat option not on Settings page'); checkbox:SetChecked(false); checkbox.scripts.OnClick(checkbox); assert(db.hidePanelInCombat==false and GoldTargetTrackerBackup.hidePanelInCombat==false)")
+        self.run_lua("local count,settingsButton,checkbox=0; for _,f in ipairs(frames) do if f.kind=='Button' and type(f.label)=='table' then count=count+1; assert(f.label:GetText()~='界面与显示'); if f.label:GetText()=='设置' then settingsButton=f end end; if f.kind=='CheckButton' then checkbox=f end end; assert(count==5 and settingsButton and checkbox); settingsButton.scripts.OnClick(); assert(checkbox:IsVisible(), 'combat option not on Settings page'); checkbox:SetChecked(false); checkbox.scripts.OnClick(checkbox); assert(db.hidePanelInCombat==false and GoldTargetTrackerBackup.hidePanelInCombat==false)")
 
     def test_target_presets_update_visible_amount_and_selected_state(self):
         self.boot()

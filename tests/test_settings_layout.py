@@ -46,7 +46,7 @@ class SettingsLayoutTests(unittest.TestCase):
                     assert(f.parent.parent==GoldTargetTrackerIncomePage.content, 'assets not under income')
                 end
             end
-            assert(table.concat(labels,',')=='总览,金币来源,自动使用,设置')
+            assert(table.concat(labels,',')=='总览,金币来源,自动使用,专业循环,设置')
         """)
 
     def test_income_reflows_between_inline_and_wrapped_without_changing_values(self):

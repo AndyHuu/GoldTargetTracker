@@ -1,6 +1,19 @@
 # 验证记录
 
-版本：2.2.0-rc12。日期：2026-10-26。
+当前版本：2.3.0-rc1。复核日期：2026-10-31；此前记录按版本保留。
+
+## 2.3.0-rc1 专业循环整合复核
+
+- 专业循环使用三个独立模块，主文件仅接入初始化及第五个设置页；金币来源模块未变。
+- 完整运行 123 项 Lua 5.1 模拟回归，0 失败、0 错误、0 跳过；原金币回归范围保留。
+- 检查列表校验、角色独立存档、空列表保存、配方和材料过滤、批次等待、战斗拦截、宏冲突、旧按钮接管及窄窗口重排。
+- 本机还执行了旧独立版 0.1.1 源码接管测试；该兼容测试依赖可选本地源码，普通克隆环境缺少它时会明确跳过，其余测试不依赖本地游戏。
+- 待提交的五个 Lua 文件及 TOC 与游戏实装版本逐字节一致；本轮未覆盖游戏文件或修改 WTF。
+- 发布前已将实装插件、仅本插件的落盘存档及待提交改动独立备份并校验 SHA-256；私人备份与报告不进入仓库。
+- 参照客户端 [专业 API 定义](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_APIDocumentationGenerated/TradeSkillUIDocumentation.lua) 和 [安全按钮实现](https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_FrameXML/SecureTemplates.lua) 核对调用参数及物品目标属性；源码核对和模拟测试不能证明真实客户端权限通过。
+- 本轮没有进行实际回收、制造或分解；新功能仍按 [专业循环说明](PROFESSION_CYCLE.md) 验收。每次宏操作需要玩家触发，不在事件回调中启动下一步。
+
+## 2.2.0-rc12 既有验证
 
 - Windows / Python 3.13 / lupa 2.6 / Lua 5.1，98 项模拟测试通过。
 - 完整生产文件解析执行；模拟方法对线段锚点及 EditBox:SetFont flags 作严格校验。

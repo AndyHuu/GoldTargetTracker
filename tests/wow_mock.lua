@@ -231,3 +231,44 @@ function clickText(text)
     end
     error('button not found: '..text)
 end
+
+-- Profession-cycle integration mock: no live protected execution is simulated.
+function methods:RegisterUnitEvent(event, unit) self.events[event]=unit end
+function methods:SetAttribute(key,value) self.attributes=self.attributes or {}; self.attributes[key]=value end
+function methods:GetAttribute(key) return self.attributes and self.attributes[key] end
+function RegisterStateDriver(button,key,value) button.stateDriver=value end
+UnitCastingInfo=function() return cycleCasting and 'casting' or nil end
+UnitChannelInfo=function() return cycleChanneling and 'channeling' or nil end
+SpellIsTargeting=function() return spellCursor or false end
+GetCursorInfo=function() return cursorType,cursorID end
+ClearCursor=function() cursorType,cursorID=nil,nil end
+Constants={MacroConsts={MAX_CHARACTER_MACROS=30}}
+macros, macroCalls, macroCount = {},0,0
+function GetMacroInfo(name) local m=macros[name]; if m then return name,m.icon,m.body end end
+function GetNumMacros() return 0,macroCount end
+function CreateMacro(name,icon,body,character)
+    if macroError then error('macro unavailable') end
+    assert(not combat and character)
+    macroCalls=macroCalls+1; macroCount=macroCount+1
+    macros[name]={icon=icon,body=body}; return 120+macroCount
+end
+cycleFree, cycleProfession, craftCalls, cycleAllowed = 12,202,{}, {239700,239701,777}
+cycleRecipes={
+    [1229930]={name='循环回收',learned=true,isSalvageRecipe=true,profession=202,quantity=1,count=0},
+    [1229866]={name='永恒之核腕扣',learned=true,profession=202,quantity=1,count=20},
+    [888]={name='工程测试物品',learned=true,profession=202,quantity=2,count=10},
+}
+C_Container.GetContainerNumFreeSlots=function(bag) return bag==0 and cycleFree or 0,bag==5 and 2048 or 0 end
+ItemLocation={CreateFromBagAndSlot=function(_,bag,slot) return {bag=bag,slot=slot} end}
+C_Item.GetItemInfoInstant=function(value) return tonumber(value) end
+C_TradeSkillUI={
+    GetBaseProfessionInfo=function() return cycleProfession and {professionID=cycleProfession} end,
+    OpenTradeSkill=function(id) craftCalls[#craftCalls+1]={'open',id} end,
+    GetRecipeInfo=function(id) return cycleRecipes[id] end,
+    GetProfessionInfoByRecipeID=function(id) local r=cycleRecipes[id]; return r and {professionID=r.profession} end,
+    GetRecipeSchematic=function(id) local r=cycleRecipes[id]; return r and {quantityMax=r.quantity} end,
+    GetCraftableCount=function(id) local r=cycleRecipes[id]; return r and r.count end,
+    GetSalvagableItemIDs=function() return cycleAllowed end,
+    CraftRecipe=function(id,count) craftCalls[#craftCalls+1]={'craft',id,count} end,
+    CraftSalvage=function(id,count,location) craftCalls[#craftCalls+1]={'recycle',id,count,location.bag,location.slot} end,
+}
